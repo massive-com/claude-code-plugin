@@ -1,0 +1,155 @@
+---
+name: dashboard
+description: Scaffold a Streamlit-based financial dashboard using Massive APIs. Use when building market data visualizations, multi-asset dashboards, or real-time monitoring interfaces.
+argument-hint: "[project-name] [focus: multi-asset|options|crypto|macro]"
+disable-model-invocation: true
+allowed-tools: Write Edit Bash Read
+---
+
+# Scaffold a Streamlit financial dashboard
+
+Project name: $0 (default: `dashboard` if not specified)
+Focus area: $1 (default: `multi-asset` if not specified)
+
+## Architecture
+
+Follow this modular structure (proven in the Bloomberg terminal demo):
+
+```
+$0/
+  streamlit_app.py       # Entry point: layout, styling, sidebar
+  terminal/
+    __init__.py
+    data.py              # All API calls, caching layer
+    config.py            # Colors, defaults, TTL constants
+    charts.py            # Plotly chart rendering functions
+    panels/
+      __init__.py
+      price_chart.py     # OHLCV candlestick + indicators
+      watchlist.py       # Multi-asset snapshot table
+      ...                # Additional panels per focus area
+  .streamlit/
+    config.toml          # Theme configuration
+  pyproject.toml
+  .env.example
+  README.md
+```
+
+## Key patterns
+
+### Client singleton (never recreate per call)
+```python
+import streamlit as st
+
+@st.cache_resource
+def _get_client(api_key: str):
+    from massive import RESTClient
+    return RESTClient(api_key=api_key)
+```
+
+### TTL-based caching (reduce API calls)
+```python
+TTL_SNAPSHOT = 30     # live quotes refresh every 30s
+TTL_CHART = 60        # historical bars refresh every 60s
+TTL_OPTIONS = 45      # options chain refresh every 45s
+TTL_NEWS = 120        # news refresh every 2 min
+TTL_MACRO = 3600      # macro data refresh every hour
+
+@st.cache_data(ttl=TTL_SNAPSHOT, show_spinner=False)
+def get_snapshot(api_key: str, tickers: tuple[str, ...]) -> dict:
+    client = _get_client(api_key)
+    return {s.ticker: s for s in client.list_universal_snapshots(ticker_any_of=list(tickers))}
+```
+
+Note: pass `api_key` as a plain string and ticker lists as tuples so they are hashable for `st.cache_data`.
+
+### Plotly dark theme charts
+```python
+import plotly.graph_objects as go
+
+fig = go.Figure(data=[go.Candlestick(
+    x=dates, open=opens, high=highs, low=lows, close=closes
+)])
+fig.update_layout(
+    template="plotly_dark",
+    paper_bgcolor="#000000",
+    plot_bgcolor="#0a0a0a",
+    xaxis_rangeslider_visible=False,
+)
+```
+
+### Multi-asset watchlist
+Use `list_universal_snapshots()` with mixed-asset tickers in a single call:
+```python
+tickers = ("AAPL", "MSFT", "X:BTCUSD", "C:EURUSD", "I:SPX")
+snapshots = get_snapshot(api_key, tickers)
+```
+
+### WebSocket trade tape (real-time panel)
+Run WebSocket in a daemon thread; append messages to a session-scoped buffer:
+```python
+if "trade_buffer" not in st.session_state:
+    st.session_state.trade_buffer = []
+
+# Start WebSocket thread (see bloomberg-terminal/terminal/panels/trade_tape.py)
+```
+
+## Focus areas
+
+### multi-asset (default)
+Panels: watchlist (equities + crypto + forex + indices), price chart with indicators, market status.
+SDK: `list_universal_snapshots`, `list_aggs`, `get_sma`/`get_ema`/`get_rsi`/`get_macd`.
+REST: `GET /v1/marketstatus/now` for market status.
+
+### options
+Panels: options chain table, Greeks heatmap, P&L diagram, underlying price chart.
+SDK: `list_snapshot_options_chain`, `list_aggs`, `get_last_trade`.
+
+### crypto
+Panels: crypto watchlist, BTC/ETH price charts, volume comparison.
+SDK: `list_universal_snapshots` with `X:` tickers, `list_aggs`.
+
+### macro
+Panels: treasury yield curve, inflation chart, labor market indicators, fed funds rate.
+REST: `GET /fed/v1/treasury-yields`, `GET /fed/v1/inflation`, `GET /fed/v1/labor-market`.
+Use the MCP `call_api` tool or direct REST calls for these endpoints; SDK methods may not exist for all economy endpoints.
+Note: Economy/Federal Reserve data may require a specific plan tier. Check access at massive.com/dashboard.
+
+## Dependencies
+
+```toml
+[project]
+name = "$0"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = [
+    "massive>=2.4.0",
+    "streamlit>=1.41.0",
+    "plotly>=5.24.0",
+    "pandas>=2.2.0",
+    "numpy>=2.0.0",
+    "python-dotenv>=1.0.0",
+]
+```
+
+## Streamlit config
+
+`.streamlit/config.toml`:
+```toml
+[theme]
+base = "dark"
+
+[server]
+headless = true
+```
+
+## Steps
+
+1. Create the project directory structure
+2. Write `config.py` with color palette and TTL constants
+3. Write `data.py` with cached API call wrappers for the chosen focus area
+4. Write `charts.py` with Plotly rendering functions
+5. Write panel modules for the chosen focus area
+6. Write `streamlit_app.py` with layout, sidebar, and panel composition
+7. Write `pyproject.toml`, `.env.example`, `.streamlit/config.toml`, README
+8. Confirm structure and provide run command: `uv sync && uv run streamlit run streamlit_app.py`

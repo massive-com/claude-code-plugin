@@ -1,0 +1,32 @@
+{
+  "name": "massive",
+  "version": "1.0.0",
+  "description": "Massive financial data API plugin. Adds API knowledge, endpoint discovery, project scaffolding, and auto-configured MCP tools for building with Massive's REST and WebSocket APIs across equities, options, crypto, forex, indices, and futures.",
+  "author": {
+    "name": "Massive",
+    "url": "https://massive.com"
+  },
+  "homepage": "https://massive.com/docs",
+  "repository": "https://github.com/massive-com/claude-code-plugin",
+  "license": "MIT",
+  "keywords": [
+    "financial-data",
+    "api",
+    "market-data",
+    "equities",
+    "options",
+    "crypto",
+    "forex",
+    "indices",
+    "futures",
+    "mcp"
+  ],
+  "skills": "./skills",
+  "mcpServers": "./.mcp.json",
+  "userConfig": {
+    "massive_api_key": {
+      "description": "Your Massive API key from massive.com/dashboard",
+      "sensitive": true
+    }
+  }
+}

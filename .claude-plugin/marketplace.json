@@ -1,0 +1,14 @@
+{
+  "name": "massive-claude-code-plugin",
+  "owner": {
+    "name": "Massive",
+    "url": "https://massive.com"
+  },
+  "plugins": [
+    {
+      "name": "massive",
+      "description": "Massive financial data API plugin. Adds API knowledge, endpoint discovery, project scaffolding, and auto-configured MCP tools for equities, options, crypto, forex, indices, and futures.",
+      "source": "./"
+    }
+  ]
+}
