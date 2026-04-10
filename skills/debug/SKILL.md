@@ -1,7 +1,7 @@
 ---
 name: debug
 description: Debug Massive API errors, unexpected responses, or SDK issues. Use when API calls return errors, data looks wrong, pagination isn't working, or the SDK behaves unexpectedly.
-disable-model-invocation: true
+disable-model-invocation: false
 allowed-tools: Read Grep mcp__massive__search_endpoints mcp__massive__get_endpoint_docs Bash
 ---
 

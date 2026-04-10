@@ -2,7 +2,7 @@
 name: scaffold
 description: Scaffold a new Massive API project with pyproject.toml, .env setup, and boilerplate code. Use when creating a new project, demo, or example that uses Massive's financial data APIs.
 argument-hint: "[project-name] [type: rest|websocket|streamlit]"
-disable-model-invocation: true
+disable-model-invocation: false
 allowed-tools: Write Edit Bash
 ---
 
