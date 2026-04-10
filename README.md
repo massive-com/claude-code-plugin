@@ -122,3 +122,7 @@ For developers using other AI coding assistants, equivalent API convention files
 ## License
 
 MIT
+
+## Disclaimer
+
+This content is for educational purposes only. Nothing in this post constitutes investment advice or a recommendation to buy or sell any securities or other financial instruments. Massive is a market data provider, not a broker-dealer, exchange, or investment adviser. Market data accessed through Massive may originate from third-party exchanges and data providers or may be derived or calculated by Massive; in either case, it is subject to the applicable terms of your Massive subscription agreement. The data and code samples provided by Massive are offered on an "as-is" basis without any warranty of accuracy, completeness, or timeliness. You are solely responsible for your use of the data provided by Massive and for compliance with all applicable terms and conditions, laws, and data licensing requirements.
