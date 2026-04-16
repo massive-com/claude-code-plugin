@@ -177,13 +177,14 @@ These tests require a valid API key with at least Basic tier access.
 - [ ] Contains `main.py` with `load_dotenv()` BEFORE `from massive import RESTClient`
 - [ ] Contains `README.md` with quickstart (cd, cp .env.example, uv sync, uv run)
 - [ ] Claude mentions which plan tier the project needs
+- [ ] Claude points to `/massive:discover` and `/massive:debug` as follow-ups
 - [ ] **Runtime test:** `cd test-project && cp .env.example .env`, add key, `uv sync && uv run python main.py` produces real data
 
 ### 5b. Scaffold - JavaScript REST
 
 **Prompt:** `/massive:scaffold test-js rest javascript`
 
-- [ ] Creates `package.json` with `@massive.com/client-js` and `dotenv`, `"type": "module"`
+- [ ] Creates `package.json` with `"@massive.com/client-js": "^10.6.0"` (pinned, NOT `"latest"`) and `dotenv`, `"type": "module"`
 - [ ] Creates `index.js` using `restClient()`, `getStocksAggregates({...})` with object params
 - [ ] Bar fields are abbreviated (`bar.o`, `bar.h`, etc.)
 - [ ] No Python patterns (`RESTClient`, `list_aggs`, `load_dotenv`)
@@ -212,6 +213,7 @@ These tests require a valid API key with at least Basic tier access.
 
 **Prompt:** `/massive:scaffold ws-py websocket python`
 
+- [ ] **Plan tier warning:** Claude flags that WebSocket requires Starter plan ($29-49/mo) or above BEFORE scaffolding, or confirms the user has Starter
 - [ ] Imports `from massive.websocket.models import Market, Feed`
 - [ ] Uses `WebSocketClient(api_key=..., market=Market.Stocks, subscriptions=[...])`
 - [ ] Has handler function and `client.run(handle_msg=handler)`
@@ -270,22 +272,43 @@ These tests require a valid API key with at least Basic tier access.
 - [ ] Identifies missing JitPack repository
 - [ ] Suggests adding `maven("https://jitpack.io")` to repositories
 
+**Rate-limit error (Python):**
+**Prompt:** `/massive:debug I keep getting BadResponse errors with "You've exceeded the maximum requests per minute" during a batch job`
+
+- [ ] Identifies as a 429 rate-limit (Basic tier: 5 calls/min)
+- [ ] Provides `with_backoff` helper using body-text markers (`"maximum requests"`, `"rate limit"`, `"too many requests"`) NOT `"429" in str(e)` (the SDK body does not include HTTP status)
+- [ ] Suggests caching, universal snapshot batching, or upgrading to Starter
+
+**Rate-limit retry (JS/Go):**
+**Prompt:** `/massive:debug how do I retry 429s in my Node.js / Go code?`
+
+- [ ] JS example uses `err?.status ?? err?.response?.status === 429` (axios error shape)
+- [ ] Go example uses `strings.Contains(err.Error(), "429")` (SDK includes HTTP status in error)
+
+**Go Last Trade fields:**
+**Prompt:** `/massive:debug In Go, resp.JSON200.Results.P is undefined after GetLastStocksTradeWithResponse`
+
+- [ ] Identifies that the generated struct names the trade price `BidPrice` and size `BidSize` (JSON-tagged `p` and `s`), despite being on a Trade response
+- [ ] Suggests using `r.BidPrice` and `r.BidSize` (nil-check `*float64`)
+
 ### 5h. Options (`/massive:options`)
 
 **Prompt:** `/massive:options "bull call spread" SPY python`
 
+- [ ] **Plan tier check:** Claude asks about or confirms Options Starter ($49/mo) BEFORE scaffolding (since Greeks/IV are gated)
 - [ ] Creates a project DIRECTORY (not a throwaway script)
 - [ ] `pyproject.toml` has `massive>=2.4.0` (NOT `massive-sdk`)
 - [ ] `main.py` has `load_dotenv()` before `from massive import RESTClient`
-- [ ] Includes `.env.example`, `.gitignore`, `README.md`
+- [ ] **Dynamic expiration dates:** Expiration window is derived from `date.today()` (e.g., `today + timedelta(days=7)` to `today + timedelta(days=60)`), NOT hardcoded past dates like `"2025-06-01"`
+- [ ] Includes `.env.example`, `.gitignore`, `README.md` with plan-tier note
 - [ ] Quickstart output: cd, cp .env.example, install, run
 - [ ] Calculates max profit, max loss, breakeven, risk/reward
 
 **Prompt:** `/massive:options "covered call" AAPL javascript`
 
-- [ ] Creates project with `package.json` (`@massive.com/client-js`)
+- [ ] Creates project with `package.json` (pins `"@massive.com/client-js": "^10.6.0"`)
 - [ ] Uses `getOptionsChain({underlyingAsset: ...})` with object params
-- [ ] Notes Options Starter plan requirement
+- [ ] Notes Options Starter plan requirement upfront (not just at the end)
 
 ### 5i. Dashboard (`/massive:dashboard`)
 
@@ -360,6 +383,32 @@ Review all Claude responses from the tests above and verify:
 - [ ] Does NOT use the equity aggregates endpoint
 - [ ] Mentions the correct ticker format (e.g., `ESM6` for a contract, or `ES` for the product)
 
+### 8d. Plan-tier guardrails (new)
+
+**Prompt:** `/massive:scaffold live-tape websocket python` (tester on free Basic plan)
+
+- [ ] Claude stops before scaffolding and asks whether the user has Starter or above
+- [ ] If tester confirms "no, Basic": Claude either scaffolds with a clear plan-tier note in the README or suggests a `rest` project instead
+- [ ] If tester confirms "yes, Starter+": Claude proceeds to scaffold normally
+
+**Prompt:** `/massive:options "iron condor" SPY python` (tester on free Basic Options plan)
+
+- [ ] Claude stops and asks about Options Starter access before scaffolding
+- [ ] If Basic Options: Claude offers a degraded version (open-interest/volume/strike filtering, no Greek-based ranking)
+- [ ] If Options Starter+: Claude proceeds with full Greeks-based strategy
+
+### 8e. README troubleshooting references (new)
+
+**Prompt:** `The MCP server is not starting, what do I check?`
+
+- [ ] Claude references the README Troubleshooting section
+- [ ] Mentions `uv --version`, Python 3.12+ requirement, `claude --debug` for logs
+- [ ] Does NOT fabricate a workaround that bypasses uvx
+
+**Prompt:** `How do I verify my plugin setup is working?`
+
+- [ ] Claude points to the 3-step verify-setup checklist in README (plugin loaded, MCP running, API key working)
+
 ## Test results
 
 | Section | Pass/Fail | Notes |
@@ -394,3 +443,5 @@ Review all Claude responses from the tests above and verify:
 | 8a. No API key | | |
 | 8b. Mixed-asset snapshot | | |
 | 8c. Futures awareness | | |
+| 8d. Plan-tier guardrails | | |
+| 8e. README troubleshooting | | |

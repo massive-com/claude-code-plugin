@@ -59,6 +59,43 @@ claude --plugin-dir .
 
 To reload after changes without restarting, run `/reload-plugins` inside Claude Code.
 
+### Verify your setup
+
+Open Claude Code in any directory, then confirm three things:
+
+1. **Plugin loaded.** Run `/reload-plugins` and check for `1 plugins, 5 skills, 0 errors`.
+2. **MCP server running.** Ask: `What MCP tools do you have from Massive?` Claude should list `search_endpoints`, `get_endpoint_docs`, `call_api`, `query_data`.
+3. **API key working.** Ask: `Call the Massive API for AAPL's last trade.` You should get a live price back.
+
+If any step fails, see the [Troubleshooting](#troubleshooting) section below.
+
+## Troubleshooting
+
+### MCP server does not start
+
+The Massive MCP server is spawned via [`uvx`](https://docs.astral.sh/uv/guides/tools/) and requires Python 3.12+.
+
+- **`uvx: command not found`** — Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh` (macOS/Linux) or `pip install uv`.
+- **Python too old** — Check with `python3 --version`. uvx will fetch Python 3.12 automatically the first time, but this requires network access. If you are offline, install Python 3.12 manually.
+- **No MCP tools available in Claude** — Restart Claude Code. If it persists, run with `claude --debug` and look for `mcp_massive` entries in the logs.
+- **First launch is slow** — On the first run, uvx downloads the MCP server package (~5-10 seconds). Subsequent launches are fast.
+
+### Plugin did not load
+
+- Run `/reload-plugins` inside Claude Code; it reports errors inline.
+- Confirm `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` exist and parse as valid JSON.
+- For local testing, verify you are in the repo root when running `claude --plugin-dir .`.
+
+### API calls return 401 Unauthorized
+
+- **Installed via marketplace:** The API key is stored in your system keychain. Reinstall to re-prompt: `claude plugin uninstall massive@massive-com-claude-code-plugin && claude plugin install massive@massive-com-claude-code-plugin`.
+- **Local testing (`--plugin-dir`):** The plugin does not prompt for a key in local mode. Export it before starting Claude Code: `export MASSIVE_API_KEY=your_key` then `claude --plugin-dir .`.
+- **Key revoked or rotated:** Get a fresh key at [massive.com/dashboard](https://massive.com/dashboard) and reinstall the plugin.
+
+### Rate-limited (429) on Basic tier
+
+The free Basic plan is capped at 5 calls/min. If you hit 429s, see the retry and caching guidance in `/massive:debug` or upgrade to Starter ($29-49/mo) for unlimited calls.
+
 ## Plans and pricing
 
 Plans are per asset class (Stocks, Options, Indices, Currencies, Futures). A free tier is available for every asset class.
@@ -94,12 +131,12 @@ For non-Python scaffolding:
 
 All skills support Python, JavaScript/TypeScript, Go, and Kotlin. Massive provides official client libraries for each:
 
-| Language | Package | Repository |
-|---|---|---|
-| Python | `massive` on PyPI | [massive-com/client-python](https://github.com/massive-com/client-python) |
-| JavaScript/TypeScript | `@massive.com/client-js` on npm | [massive-com/client-js](https://github.com/massive-com/client-js) |
-| Go | `github.com/massive-com/client-go/v3` | [massive-com/client-go](https://github.com/massive-com/client-go) |
-| Kotlin/JVM | Gradle (Android SDK 21+) | [massive-com/client-jvm](https://github.com/massive-com/client-jvm) |
+| Language | Package | Minimum version | Repository |
+|---|---|---|---|
+| Python | `massive` on PyPI | v2.5.0 (Python 3.9+) | [massive-com/client-python](https://github.com/massive-com/client-python) |
+| JavaScript/TypeScript | `@massive.com/client-js` on npm | v10.6.0 (Node.js 16+) | [massive-com/client-js](https://github.com/massive-com/client-js) |
+| Go | `github.com/massive-com/client-go/v3` | v3.2.0 (Go 1.21+) | [massive-com/client-go](https://github.com/massive-com/client-go) |
+| Kotlin/JVM | JitPack `com.github.massive-com:client-jvm` | v5.1.2 (JDK 21+, Android SDK 21+) | [massive-com/client-jvm](https://github.com/massive-com/client-jvm) |
 
 ## Cross-tool support
 

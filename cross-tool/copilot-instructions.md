@@ -4,7 +4,7 @@ You are assisting a developer building with the Massive financial data API. Foll
 
 ## SDK
 
-The Python SDK is `massive` on PyPI (v2.4.0, requires Python 3.9+). Pin `>=2.4.0` in pyproject.toml. Core imports:
+The Python SDK is `massive` on PyPI (v2.5.0, requires Python 3.9+). Pin `>=2.4.0` in pyproject.toml. Core imports:
 
 ```python
 from dotenv import load_dotenv
@@ -91,9 +91,9 @@ Method names differ across SDKs. Key mappings:
 
 | Python | JS/TS (`@massive.com/client-js`) | Go (`client-go/v3`) | Kotlin (`client-jvm`) |
 |---|---|---|---|
-| `list_aggs(...)` | `getStocksAggregates({stocksTicker, ...})` | `GetStocksAggregatesWithResponse(...)` | `getStocksAggregates(...)` |
-| `list_snapshot_options_chain(...)` | `getOptionsChain({underlyingAsset, ...})` | `GetOptionsChainWithResponse(...)` | `getOptionsChain(...)` |
-| `get_last_trade(ticker)` | `getLastStocksTrade({stocksTicker})` | `GetLastStocksTradeWithResponse(ctx, ticker)` | `getLastStocksTrade(ticker)` |
+| `list_aggs(...)` | `getStocksAggregates({stocksTicker, ...})` | `GetStocksAggregatesWithResponse(...)` | `getAggregatesBlocking(AggregatesParameters(...))` |
+| `list_snapshot_options_chain(...)` | `getOptionsChain({underlyingAsset, ...})` | `GetOptionsChainWithResponse(...)` | `getSnapshotOptionsChainBlocking(SnapshotOptionsChainParameters(...))` |
+| `get_last_trade(ticker)` | `getLastStocksTrade({stocksTicker})` | `GetLastStocksTradeWithResponse(ctx, ticker)` | `getLastTradeBlockingV2(ticker)` |
 
 JS/TS: ALL methods take a single object parameter with named fields (not positional args). Bar fields are abbreviated (`o`, `h`, `l`, `c`, `v`, `t`). Pagination via `{ pagination: true }` option.
 

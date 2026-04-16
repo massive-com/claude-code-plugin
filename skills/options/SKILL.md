@@ -11,6 +11,15 @@ Strategy: $0
 Underlying: $1 (default: SPY if not specified)
 Language: infer from context, default to Python if not specified.
 
+## Plan tier check (run BEFORE scaffolding)
+
+Options strategies rely on Greeks (delta, gamma, theta, vega) and implied volatility. These fields are **only populated on Options Starter ($49/mo) or above**. On the Basic Options plan, the options chain returns without Greeks/IV, and any strategy that filters or ranks on those fields will return empty results.
+
+Before scaffolding:
+- Confirm the user has **Options Starter or above**. If they have not said, ask once: "Options strategies need Greeks and IV, which require Options Starter ($49/mo) or above. Are you on Options Starter or higher?"
+- If they say Basic: offer a downgraded build that uses only open interest, volume, bid/ask, and strike/expiration filtering (no Greek-based filtering). Note this limitation in the generated README.
+- If they say Starter or higher: proceed normally.
+
 ## Output: a runnable project
 
 Create a project directory with the strategy name (e.g., `spy-bull-call-spread/`). The project must include:
@@ -37,6 +46,19 @@ OCC symbology: `O:AAPL250117C00150000`
 - `250117` expiration (YYMMDD)
 - `C` or `P` for call/put
 - `00150000` strike price * 1000 (8 digits)
+
+## Expiration-date guidance
+
+The snapshot options chain only returns **live, unexpired contracts**. When generating code, derive expiration dates from the current date, not from the template literal dates below. A reasonable default window is `today + 7d` to `today + 60d`:
+
+```python
+from datetime import date, timedelta
+today = date.today()
+expiry_lo = (today + timedelta(days=7)).isoformat()
+expiry_hi = (today + timedelta(days=60)).isoformat()
+```
+
+If the user specifies an expiration window, honor it, but warn if the window is already in the past.
 
 ## SDK patterns for options chain
 
@@ -257,15 +279,16 @@ Built-in financial functions available via `apply` parameter: Black-Scholes (`bs
 
 ## Steps
 
-1. Determine which strategy the user wants from `$0`
-2. Create the project directory
-3. Write dependency file, `.env.example`, `.gitignore`
-4. Write the entry point script that:
-   a. Loads the API key from `.env`
-   b. Gets current underlying price
-   c. Fetches the relevant options chain(s)
-   d. Applies strategy-specific filtering and ranking
-   e. Prints results with risk/reward metrics
-5. Write README.md
-6. Provide quickstart: `cd <project>`, `cp .env.example .env`, install, run
-7. Note the minimum plan tier (Options Starter or above for Greeks/IV)
+1. **Plan check first** (see "Plan tier check" above). Confirm Options Starter or above before using Greek-based filters.
+2. Determine which strategy the user wants from `$0`.
+3. Create the project directory.
+4. Write dependency file, `.env.example`, `.gitignore`.
+5. Write the entry point script that:
+   a. Loads the API key from `.env`.
+   b. Gets current underlying price.
+   c. Fetches the relevant options chain(s).
+   d. Applies strategy-specific filtering and ranking.
+   e. Prints results with risk/reward metrics.
+6. Write README.md (include a line stating the required plan tier).
+7. Provide quickstart: `cd <project>`, `cp .env.example .env`, install, run.
+8. Restate the minimum plan tier (Options Starter or above for Greeks/IV) and suggest `/massive:debug` if the user hits errors.

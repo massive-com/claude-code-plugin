@@ -36,6 +36,16 @@ Read the user's code and error output, then diagnose the issue. Detect the langu
 - Wrong endpoint URL or method name in SDK.
 - Use `search_endpoints` to find the correct endpoint.
 
+### HTTP 429 Too Many Requests / rate limited
+- Basic plan is limited to **5 API calls/min**. Starter and above have unlimited calls, but bursts can still trigger throttling.
+- Fix in priority order:
+  1. **Cache reference data** (ticker lists, exchanges, market holidays) for 24 hours; they rarely change.
+  2. **Batch via the universal snapshot endpoint** (`/v3/snapshot`) instead of one call per ticker.
+  3. **Serialize loops, do not parallelize** on Basic tier.
+  4. **Retry with exponential backoff** for transient 429s (see per-language examples below).
+  5. **Upgrade** to Starter ($29-49/mo) for unlimited calls.
+- On Basic, auto-pagination over large date ranges can silently exhaust the quota. Cap with `limit=50000` or a narrower date range, or switch to flat files (Starter+).
+
 ### Empty results (no error)
 - Date range falls on a weekend or market holiday. Try a known trading day.
 - Ticker is delisted or invalid.
@@ -71,6 +81,33 @@ Read the user's code and error output, then diagnose the issue. Detect the langu
 ### SDK version issues
 - Ensure `massive>=2.4.0` in `pyproject.toml`. Check: `pip show massive` or `uv pip show massive`.
 
+### Rate-limit retry (Python)
+The SDK raises `massive.exceptions.BadResponse` on any non-200 response, passing the response body as the message (the HTTP status code is NOT preserved on the exception). So matching against `str(e)` looks at the JSON error body, which typically contains `"maximum requests"` or `"rate"` for 429s. Detect and retry:
+```python
+import time
+from massive.exceptions import BadResponse
+
+_RATE_LIMIT_MARKERS = ("maximum requests", "rate limit", "too many requests")
+
+def _is_rate_limit(e: BadResponse) -> bool:
+    msg = str(e).lower()
+    return any(m in msg for m in _RATE_LIMIT_MARKERS)
+
+def with_backoff(fn, max_attempts=5):
+    for attempt in range(max_attempts):
+        try:
+            return fn()
+        except BadResponse as e:
+            if not _is_rate_limit(e) or attempt == max_attempts - 1:
+                raise
+            time.sleep(2 ** attempt)  # 1s, 2s, 4s, 8s, 16s
+
+bars = with_backoff(lambda: list(client.list_aggs("AAPL", 1, "day", "2025-01-01", "2025-06-01")))
+```
+If you need strict HTTP-status-based retries, pass `raw=True` to the underlying REST call to get the `urllib3.HTTPResponse` and inspect `resp.status` directly.
+
+For Streamlit, prefer `@st.cache_data(ttl=...)` over retries. Typical TTLs: 30s for snapshots, 300s for intraday aggregates, 86400s for reference data.
+
 ## JavaScript/TypeScript-specific errors
 
 ### Unhandled promise rejection / async errors
@@ -97,6 +134,26 @@ Read the user's code and error output, then diagnose the issue. Detect the langu
 - Market connections: `ws.stocks()`, `ws.options()`, `ws.crypto()`, etc. Each returns a W3C WebSocket.
 - Message events: `T` (trade), `Q` (quote), `A` (per-second agg), `AM` (per-minute agg).
 
+### Rate-limit retry (JavaScript/TypeScript)
+SDK errors surface with a `status` field on HTTP failures. Retry 429s with exponential backoff:
+```javascript
+async function withBackoff(fn, maxAttempts = 5) {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const status = err?.status ?? err?.response?.status;
+      if (status !== 429 || i === maxAttempts - 1) throw err;
+      await new Promise(r => setTimeout(r, 2 ** i * 1000));
+    }
+  }
+}
+
+const resp = await withBackoff(() =>
+  client.getStocksAggregates({ stocksTicker: "AAPL", multiplier: 1, timespan: "day", from: "2025-01-01", to: "2025-06-01" })
+);
+```
+
 ## Go-specific errors
 
 ### `panic: missing API key`
@@ -112,6 +169,23 @@ Read the user's code and error output, then diagnose the issue. Detect the langu
 - First param is always `context.Context`.
 - Optional params use pointer types with `rest.Ptr(value)` helper.
 
+### Misleading field names on Last Trade response
+In `GetLastStocksTradeResponse.JSON200.Results`, the generated Go struct names the trade price `BidPrice` and size `BidSize` (JSON-tagged `p` and `s`). These are NOT bid fields; they carry the actual trade price and size. The documentation comments clarify this, but the Go field names are misleading. Use them anyway:
+```go
+trade, _ := c.GetLastStocksTradeWithResponse(ctx, "AAPL")
+r := *trade.JSON200.Results
+price := r.BidPrice  // this is the TRADE price
+size := r.BidSize    // *float64, nil-check before dereferencing
+```
+
+### Nested struct vs pointer-struct patterns on options chain
+In `GetOptionsChainResponse.JSON200.Results[*]`:
+- `Details` is a **struct** (value type). Access `opt.Details.Ticker` directly; do not nil-check.
+- `Greeks` is a **pointer** (`*struct`). Nil-check before accessing: `if opt.Greeks != nil { delta := opt.Greeks.Delta }`.
+- Fields *inside* Greeks (`Delta`, `Gamma`, `Theta`, `Vega`) are direct `float64` values (not pointers).
+- `ImpliedVolatility` is `*float64`. Nil-check before dereferencing.
+- `LastQuote` is a struct; `LastTrade` is a pointer struct.
+
 ### Type casting for enum params
 - Some params need explicit type casting: `(*gen.GetOptionsChainParamsContractType)(rest.Ptr("call"))`.
 
@@ -124,6 +198,37 @@ Read the user's code and error output, then diagnose the issue. Detect the langu
 - Channel-based: read from `c.Output()` (messages) and `c.Error()` (fatal errors).
 - Topics: `massivews.StocksTrades`, `massivews.StocksQuotes`, etc.
 - Type-switch on output: `case models.EquityTrade`, `case models.EquityQuote`, `case models.EquityAgg`.
+
+### Rate-limit retry (Go)
+429s come back as an error with "429" in the message (or check the response status). Retry with exponential backoff:
+```go
+import (
+    "strings"
+    "time"
+)
+
+func withBackoff[T any](fn func() (T, error), maxAttempts int) (T, error) {
+    var zero T
+    var lastErr error
+    for i := 0; i < maxAttempts; i++ {
+        result, err := fn()
+        if err == nil {
+            return result, nil
+        }
+        lastErr = err
+        if !strings.Contains(err.Error(), "429") || i == maxAttempts-1 {
+            return zero, err
+        }
+        time.Sleep(time.Duration(1<<i) * time.Second)
+    }
+    return zero, lastErr
+}
+
+resp, err := withBackoff(func() (*rest.GetStocksAggregatesResponse, error) {
+    return c.GetStocksAggregatesWithResponse(ctx, "AAPL", 1, gen.Day, "2025-01-01", "2025-06-01", params)
+}, 5)
+```
+Requires Go 1.21+ for generics. For older Go, write a type-specific wrapper.
 
 ## Kotlin-specific errors
 
@@ -150,6 +255,25 @@ Read the user's code and error output, then diagnose the issue. Detect the langu
 - Classes use `Polygon` prefix: `PolygonWebSocketClient`, `PolygonWebSocketChannel`, `PolygonWebSocketMessage`.
 - Subscribe after `onAuthenticated` callback fires.
 - Three connect variants: `connect()` (suspend), `connectBlocking()`, `connectAsync(callback)`.
+
+### Rate-limit retry (Kotlin)
+Wrap SDK calls with an exponential-backoff helper:
+```kotlin
+fun <T> withBackoff(maxAttempts: Int = 5, fn: () -> T): T {
+    repeat(maxAttempts) { attempt ->
+        try {
+            return fn()
+        } catch (e: Exception) {
+            val isRateLimit = e.message?.contains("429") == true
+            if (!isRateLimit || attempt == maxAttempts - 1) throw e
+            Thread.sleep((1L shl attempt) * 1000)  // 1s, 2s, 4s, 8s, 16s
+        }
+    }
+    error("unreachable")
+}
+
+val result = withBackoff { client.getAggregatesBlocking(params) }
+```
 
 ## Diagnostic steps
 

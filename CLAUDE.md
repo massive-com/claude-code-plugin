@@ -26,7 +26,7 @@ README.md                      - Installation and usage docs
 ## Key dependencies
 
 - MCP server: `massive-com/mcp_massive` (v0.8.8, spawned via uvx, requires Python 3.12+)
-- Python SDK: `massive` on PyPI (v2.4.0, Python 3.9+)
+- Python SDK: `massive` on PyPI (v2.5.0, Python 3.9+)
 - Also: JS/TS (`@massive.com/client-js`), Go (`client-go`), Kotlin/JVM (`client-jvm`)
 - MCP server indexes endpoints from `massive.com/docs/rest/llms-full.txt`
 

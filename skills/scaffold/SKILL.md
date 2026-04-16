@@ -17,6 +17,18 @@ Language: `$2` (default: `python` if not specified). Infer from context if the u
 **websocket**: Real-time streaming script with a handler callback.
 **streamlit**: Interactive dashboard with Plotly charts and cached API calls (Python only).
 
+## Plan tier check (run BEFORE scaffolding)
+
+Surface the minimum plan requirement to the user **before** writing any files. This prevents the frustrating case where a user scaffolds a WebSocket project on the Basic tier and cannot connect.
+
+- **rest** on Basic (free): works for end-of-day aggregates, reference data, technical indicators. 5 calls/min cap.
+- **websocket**: requires **Starter plan ($29-49/mo)** minimum. Basic tier cannot connect to any WebSocket feed. Confirm the user has Starter or above before scaffolding.
+- **streamlit**: the default template uses snapshots, which require **Starter plan minimum**. Warn the user; offer to use end-of-day aggregates only if they are on Basic.
+
+If the user requests `websocket` or `streamlit` and has not indicated their plan, ask one clarifying question: "This project type requires a Starter plan or above ($29-49/mo). Are you on Starter or higher?" If they say no, either:
+1. Scaffold anyway with a clear README note about the plan requirement, or
+2. Suggest a `rest` project on Basic with end-of-day aggregates.
+
 ## Language-specific setup
 
 ### Python
@@ -106,13 +118,13 @@ Dependencies: `package.json`
   "version": "0.1.0",
   "type": "module",
   "dependencies": {
-    "@massive.com/client-js": "latest",
+    "@massive.com/client-js": "^10.6.0",
     "dotenv": "^16.0.0"
   }
 }
 ```
 
-For TypeScript, add `"devDependencies": { "tsx": "latest", "@types/node": "latest" }` and create a `tsconfig.json`.
+For TypeScript, add `"devDependencies": { "tsx": "^4.19.0", "@types/node": "^20.0.0" }` and create a `tsconfig.json`.
 
 Entry point: `index.js` (or `index.ts`)
 
@@ -459,13 +471,15 @@ For WebSocket and Streamlit project types, the user will need at least a Starter
 
 ## Steps
 
-1. Create the project directory: `$0/`
-2. Write all files listed above for the chosen language
-3. Confirm the structure and provide the quickstart:
+1. **Plan check first.** For `websocket` or `streamlit` types, confirm the user is on Starter or above (see "Plan tier check" above). Do not silently scaffold a project that will fail on their plan.
+2. Create the project directory: `$0/`
+3. Write all files listed above for the chosen language.
+4. Confirm the structure and provide the quickstart:
    ```
    cd $0
    cp .env.example .env
    # Add your Massive API key to .env
    ```
    Then the language-specific install and run commands.
-4. Note the minimum plan tier needed for the project type
+5. State the minimum plan tier needed for the project type (repeat even if already mentioned in step 1).
+6. Point to follow-up skills: `/massive:discover` to find endpoints, `/massive:debug` if errors arise.

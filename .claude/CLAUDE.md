@@ -3,10 +3,10 @@
 Massive is a financial data API platform providing accurate, real-time pricing data across equities, options, crypto, forex, indices, and futures. Available via REST, WebSocket, and S3 flat files.
 
 **Official SDKs:**
-- Python: `massive` on PyPI (v2.4.0, Python 3.9+) / https://github.com/massive-com/client-python
-- JavaScript/TypeScript: `@massive.com/client-js` on npm / https://github.com/massive-com/client-js
-- Go: `github.com/massive-com/client-go/v3` (Go 1.18+) / https://github.com/massive-com/client-go
-- Kotlin/JVM: `client-jvm` (Android SDK 21+) / https://github.com/massive-com/client-jvm
+- Python: `massive` on PyPI (v2.5.0, Python 3.9+) / https://github.com/massive-com/client-python
+- JavaScript/TypeScript: `@massive.com/client-js` on npm (v10.6.0+, Node.js 16+) / https://github.com/massive-com/client-js
+- Go: `github.com/massive-com/client-go/v3` (Go 1.21+) / https://github.com/massive-com/client-go
+- Kotlin/JVM: `client-jvm` v5.1.2 via JitPack (JDK 21+, Android SDK 21+) / https://github.com/massive-com/client-jvm
 
 **Base URL:** `https://api.massive.com`
 **Auth:** API key passed via `Authorization: Bearer <key>` header, or via SDK constructor/environment variable.
@@ -65,7 +65,7 @@ import pandas as pd
 dt = pd.to_datetime(bar.timestamp, unit="ms", utc=True)
 ```
 
-**Key SDK methods (verified from v2.4.0 source):**
+**Key SDK methods (verified from v2.5.0 source):**
 - `list_aggs(ticker, multiplier, timespan, from_, to)` - OHLCV bars (adjusted by default)
 - `list_universal_snapshots(ticker_any_of=[...])` - live snapshot across all asset classes
 - `list_snapshot_options_chain(underlying_asset, params={})` - options chain with Greeks and IV

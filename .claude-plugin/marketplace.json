@@ -4,6 +4,9 @@
     "name": "Massive",
     "url": "https://massive.com"
   },
+  "metadata": {
+    "description": "Official Massive marketplace for Claude Code. Install the Massive plugin for API knowledge, endpoint discovery, project scaffolding, and auto-configured MCP tools across equities, options, crypto, forex, indices, and futures."
+  },
   "plugins": [
     {
       "name": "massive",
