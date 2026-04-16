@@ -56,19 +56,21 @@ for bar in bars:
 
 To disable auto-pagination: `RESTClient(api_key=key, pagination=False)`.
 
+**`get_*` methods return single objects, not iterators.** Do NOT wrap them in `list()` or `islice()`. This includes `get_last_trade()`, `get_last_quote()`, `get_market_status()`, `get_market_holidays()`, `get_real_time_currency_conversion()`, and the technical indicator methods (`get_sma`, `get_ema`, `get_rsi`, `get_macd`).
+
 **Timestamps:** Aggregates return millisecond epoch in `bar.timestamp`. Trades use nanosecond epoch in `trade.sip_timestamp`. Convert with:
 ```python
 import pandas as pd
 dt = pd.to_datetime(bar.timestamp, unit="ms", utc=True)
 ```
 
-**Key SDK methods (verified from v2.3.2 source):**
+**Key SDK methods (verified from v2.4.0 source):**
 - `list_aggs(ticker, multiplier, timespan, from_, to)` - OHLCV bars (adjusted by default)
 - `list_universal_snapshots(ticker_any_of=[...])` - live snapshot across all asset classes
 - `list_snapshot_options_chain(underlying_asset, params={})` - options chain with Greeks and IV
 - `get_last_trade(ticker)` / `get_last_quote(ticker)` - most recent trade/quote
 - `list_trades(ticker)` / `list_quotes(ticker)` - historical trades/quotes
-- `get_sma()`, `get_ema()`, `get_rsi()`, `get_macd()` - technical indicators
+- `get_sma()`, `get_ema()`, `get_rsi()`, `get_macd()` - technical indicators (return `SingleIndicatorResults`, not iterators; access `.values` for the list of data points, each with `.timestamp` and `.value`)
 - `list_stocks_splits(ticker)`, `list_stocks_dividends(ticker)` - corporate actions
 - `list_financials_balance_sheets()`, `list_financials_income_statements()`, `list_financials_cash_flow_statements()`, `list_financials_ratios()` - fundamentals (Stocks Advanced+)
 - `list_short_interest()`, `list_short_volume()`, `list_stocks_floats()` - market microstructure

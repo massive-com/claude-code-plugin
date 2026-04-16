@@ -45,6 +45,11 @@ Read the user's code and error output, then diagnose the issue.
 - To disable auto-pagination: `RESTClient(api_key=key, pagination=False)`.
 - Do not call `len()` on a generator. Convert to list first.
 
+### `get_*` method misuse
+- `get_*` methods (`get_last_trade`, `get_last_quote`, `get_market_status`, `get_sma`, `get_rsi`, `get_ema`, `get_macd`, etc.) return **single result objects**, not iterators.
+- Do NOT wrap them in `list()` or `islice()`. This causes `TypeError: ... object is not iterable`.
+- Technical indicators (`get_sma`, `get_rsi`, `get_ema`, `get_macd`) return a `SingleIndicatorResults` object. Access the data via `result.values` (list of objects with `.timestamp` and `.value`).
+
 ### Timestamp confusion
 - Aggregates: millisecond epoch in `bar.timestamp`.
 - Trades: nanosecond epoch in `trade.sip_timestamp`.

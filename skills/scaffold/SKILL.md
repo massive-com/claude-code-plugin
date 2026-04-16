@@ -67,9 +67,10 @@ Basic structure:
 
 Basic structure:
 1. `load_dotenv()` at top
-2. `WebSocketClient(api_key=key, market=Market.Stocks, subscriptions=["T.AAPL"])`
-3. A handler function that processes incoming messages
-4. `client.run(handle_msg=handler)`
+2. Import `from massive.websocket.models import Market, Feed`
+3. `WebSocketClient(api_key=key, market=Market.Stocks, subscriptions=["T.AAPL"])`
+4. A handler function that processes incoming messages
+5. `client.run(handle_msg=handler)`
 
 ### streamlit_app.py (streamlit type)
 

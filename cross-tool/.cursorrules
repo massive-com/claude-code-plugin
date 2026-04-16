@@ -31,7 +31,7 @@ Initialize with `RESTClient()` (reads `MASSIVE_API_KEY` from env) or `RESTClient
 - `list_snapshot_options_chain(underlying_asset, params={})` - options chain with Greeks/IV
 - `get_last_trade(ticker)`, `get_last_quote(ticker)` - most recent trade/quote
 - `list_trades(ticker)`, `list_quotes(ticker)` - historical trades/quotes
-- `get_sma()`, `get_ema()`, `get_rsi()`, `get_macd()` - technical indicators
+- `get_sma()`, `get_ema()`, `get_rsi()`, `get_macd()` - technical indicators (return `SingleIndicatorResults`; access `.values` for list of data points with `.timestamp` and `.value`)
 - `list_stocks_splits(ticker)`, `list_stocks_dividends(ticker)` - corporate actions
 
 Filter operators via `params` dict: `.gt`, `.gte`, `.lt`, `.lte`, `.any_of`.
@@ -44,6 +44,8 @@ All `list_` SDK methods return generators that auto-paginate. The `limit` parame
 from itertools import islice
 bars = list(islice(client.list_aggs("AAPL", 1, "day", "2025-01-01", "2025-06-01"), 200))
 ```
+
+`get_*` methods (`get_last_trade`, `get_last_quote`, `get_market_status`, `get_sma`, `get_rsi`, etc.) return single result objects, NOT iterators. Do not wrap in `list()` or `islice()`.
 
 ## Timestamps
 

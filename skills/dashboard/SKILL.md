@@ -78,6 +78,17 @@ fig.update_layout(
 )
 ```
 
+### Technical indicators (SMA, EMA, RSI, MACD)
+These methods return a `SingleIndicatorResults` object, NOT a paginated iterator. Access `.values` to get the list of data points:
+```python
+@st.cache_data(ttl=TTL_CHART, show_spinner=False)
+def get_rsi(api_key: str, ticker: str, window: int, timespan: str) -> list:
+    client = _get_client(api_key)
+    result = client.get_rsi(ticker, params={"window": window, "timespan": timespan, "sort": "asc"})
+    return result.values if result.values else []
+```
+Each item has `.timestamp` (ms epoch) and `.value`. Do NOT wrap these calls in `list(islice(...))`.
+
 ### Multi-asset watchlist
 Use `list_universal_snapshots()` with mixed-asset tickers in a single call:
 ```python
