@@ -15,33 +15,89 @@ The user needs: $ARGUMENTS
 
 2. For the top 2-3 matches, use `get_endpoint_docs` to pull full parameter documentation.
 
-3. Present results to the user in this format for each relevant endpoint:
+3. **Detect the user's language** from context (open files, project type, or explicit mention). Default to Python if unclear.
+
+4. Present results to the user in this format for each relevant endpoint:
 
    **Endpoint:** `GET /v2/aggs/ticker/{ticker}/range/{multiplier}/{timespan}/{from}/{to}`
    **What it returns:** OHLCV candlestick bars for any supported ticker.
    **Key parameters:** `ticker`, `multiplier`, `timespan` (second/minute/hour/day/week/month/quarter/year), `from`/`to` (YYYY-MM-DD or ms epoch), `adjusted` (default true), `sort` (asc/desc).
    **Plan tier:** Available on all plans.
 
-   **Python SDK:**
-   ```python
-   from itertools import islice
-   from dotenv import load_dotenv
-   from massive import RESTClient
+   Then show the SDK example in the user's language.
 
-   load_dotenv()
-   client = RESTClient()  # reads MASSIVE_API_KEY from .env
-   bars = list(islice(client.list_aggs("AAPL", 1, "day", "2025-01-01", "2025-06-01"), 200))
-   ```
+5. If the data need spans multiple endpoints, explain how they fit together.
 
-4. If the data need spans multiple endpoints, explain how they fit together. For example: "Use the snapshot for current price, then aggregates for historical chart data."
-
-5. Note plan tier requirements. Key thresholds:
+6. Note plan tier requirements. Key thresholds:
    - Basic (free): end-of-day data, aggs, reference, technicals, corporate actions. 5 calls/min.
    - Starter ($29-49/mo): adds WebSockets, flat files, snapshots, second aggs. Options Starter adds Greeks/IV.
    - Developer ($79/mo): adds trades.
    - Advanced ($99-199/mo): adds quotes, real-time data. Stocks Advanced adds financials/ratios.
    - Business ($999-2,500/mo): commercial use, FMV, no exchange fees.
    - Partner data (Benzinga, ETF Global, TMX): separate add-ons, $99/mo per dataset.
+
+## SDK examples by language
+
+Show the example matching the user's language. Always include .env loading.
+
+### Python
+```python
+from itertools import islice
+from dotenv import load_dotenv
+from massive import RESTClient
+
+load_dotenv()
+client = RESTClient()  # reads MASSIVE_API_KEY from .env
+bars = list(islice(client.list_aggs("AAPL", 1, "day", "2025-01-01", "2025-06-01", sort="asc"), 200))
+```
+Method naming: `list_aggs`, `list_universal_snapshots(ticker_any_of=[...])`, `list_snapshot_options_chain`, `get_last_trade`, `get_sma`/`get_rsi` (return `SingleIndicatorResults`, access `.values`). Pagination: iterator-based, use `islice()` to cap.
+
+### JavaScript / TypeScript
+```javascript
+import "dotenv/config";
+import { restClient } from "@massive.com/client-js";
+
+const client = restClient(process.env.MASSIVE_API_KEY);
+const response = await client.getStocksAggregates("AAPL", 1, "day", "2025-01-01", "2025-06-01", true, "asc", 200);
+for (const bar of response.results ?? []) {
+  console.log(bar.o, bar.h, bar.l, bar.c, bar.v, new Date(bar.t));
+}
+```
+Method naming: `getStocksAggregates`, `getOptionsChain`, `getLastStocksTrade`, `getSnapshots`. Bar fields are abbreviated (`o`, `h`, `l`, `c`, `v`, `t`). Filters are positional params (e.g., `strikePriceGte`), not a dict. Pagination: pass `{ pagination: true }` as third arg to `restClient()`.
+
+### Go
+```go
+import (
+    "github.com/joho/godotenv"
+    "github.com/massive-com/client-go/v3/rest"
+    "github.com/massive-com/client-go/v3/rest/gen"
+)
+
+godotenv.Load()
+c := rest.New("") // reads MASSIVE_API_KEY from env
+
+params := &gen.GetStocksAggregatesParams{Sort: "asc", Limit: rest.Ptr(200)}
+resp, err := c.GetStocksAggregatesWithResponse(ctx, "AAPL", 1, gen.Day, "2025-01-01", "2025-06-01", params)
+for _, bar := range *resp.JSON200.Results {
+    fmt.Println(bar.O, bar.H, bar.L, bar.C, bar.V, bar.Timestamp)
+}
+```
+Method naming: `GetStocksAggregatesWithResponse`, `GetOptionsChainWithResponse`, `GetLastStocksTradeWithResponse`, `GetSnapshotsWithResponse`. Response data in `resp.JSON200`. Pointer helpers: `rest.Ptr(value)`.
+
+### Kotlin
+```kotlin
+import io.github.cdimascio.dotenv.dotenv
+import org.openapitools.client.apis.DefaultApi
+import org.openapitools.client.infrastructure.ApiClient
+
+val env = dotenv()
+ApiClient.apiKey["apiKey"] = env["MASSIVE_API_KEY"]
+val api = DefaultApi()
+
+val result = api.getStocksAggregates("AAPL", 1, TimespanGetStocksAggregates.day, "2025-01-01", "2025-06-01", true, SortGetStocksAggregates.asc, 200)
+result.results?.forEach { bar -> println("${bar.o} ${bar.h} ${bar.l} ${bar.c} ${bar.v} ${bar.t}") }
+```
+Method naming: `getStocksAggregates`, `getOptionsChain`, `getLastStocksTrade`, `getSnapshots`. Uses typed enums for timespan/sort. Gradle dep: `com.github.massive-com:client-jvm:v5.1.2` from JitPack.
 
 ## Ticker prefix reminder
 

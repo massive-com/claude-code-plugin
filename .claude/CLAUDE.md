@@ -94,6 +94,178 @@ chain = client.list_snapshot_options_chain("AAPL", params={
 ```
 Supported operators: `.gt`, `.gte`, `.lt`, `.lte`, `.any_of`.
 
+## JavaScript/TypeScript SDK patterns
+
+```javascript
+import "dotenv/config";
+import { restClient, websocketClient } from "@massive.com/client-js";
+
+const client = restClient(process.env.MASSIVE_API_KEY);
+
+// With auto-pagination (follows next_url automatically)
+const client = restClient(process.env.MASSIVE_API_KEY, "https://api.massive.com", { pagination: true });
+```
+
+**Method names differ from Python.** Key mappings:
+| Python | JS/TS |
+|---|---|
+| `list_aggs(ticker, mult, timespan, from_, to)` | `getStocksAggregates(ticker, mult, timespan, from, to, adjusted?, sort?, limit?)` |
+| `list_universal_snapshots(ticker_any_of=[...])` | `getSnapshots({ tickerAnyOf: "AAPL,X:BTCUSD" })` |
+| `list_snapshot_options_chain(underlying, params={})` | `getOptionsChain(underlying, ...positional filter params)` |
+| `get_last_trade(ticker)` | `getLastStocksTrade(ticker)` |
+| `get_last_quote(ticker)` | `getLastStocksQuote(ticker)` |
+
+**Bar fields are abbreviated:** `o` (open), `h` (high), `l` (low), `c` (close), `v` (volume), `t` (Unix ms timestamp), `vw` (VWAP), `n` (transactions).
+
+**Timestamps:** Aggregates `t` field is milliseconds. Convert with `new Date(bar.t)`. Trades/quotes use nanoseconds; convert with `new Date(trade.t / 1_000_000)`.
+
+**Pagination:** NOT iterator-based. Pass `{ pagination: true }` as third arg to `restClient()` to auto-accumulate all pages. Without it, check `response.next_url` for manual pagination.
+
+**Filters:** Use positional parameters, not a params dict: `getOptionsChain("AAPL", undefined, undefined, "call", 150, undefined, 200, undefined, "2025-06-01")`.
+
+**WebSocket:**
+```javascript
+const ws = websocketClient(process.env.MASSIVE_API_KEY, "wss://delayed.massive.com");
+const stocksWS = ws.stocks();
+stocksWS.onopen = () => stocksWS.send(JSON.stringify({ action: "subscribe", params: "T.AAPL" }));
+stocksWS.onmessage = ({ data }) => {
+  for (const msg of JSON.parse(data)) {
+    if (msg.ev === "T") console.log(msg.p, msg.s); // price, size
+  }
+};
+```
+Market connections: `ws.stocks()`, `ws.options()`, `ws.crypto()`, `ws.forex()`, `ws.indices()`, `ws.futures()`. Message events: `T` (trade), `Q` (quote), `A` (per-second agg), `AM` (per-minute agg).
+
+## Go SDK patterns
+
+```go
+import (
+    "github.com/joho/godotenv"
+    "github.com/massive-com/client-go/v3/rest"
+    "github.com/massive-com/client-go/v3/rest/gen"
+)
+
+godotenv.Load()           // loads .env
+c := rest.New("")          // reads MASSIVE_API_KEY from env (panics if empty)
+c := rest.New("your_key")  // or pass explicitly
+```
+
+**All REST methods follow the pattern `{OperationName}WithResponse`.** Response data is in `resp.JSON200`. Results are pointer to slice (`*[]T`).
+
+**Key method mappings:**
+| Python | Go |
+|---|---|
+| `list_aggs(...)` | `c.GetStocksAggregatesWithResponse(ctx, ticker, mult, gen.Day, from, to, params)` |
+| `list_universal_snapshots(...)` | `c.GetSnapshotsWithResponse(ctx, &gen.GetSnapshotsParams{TickerAnyOf: rest.Ptr("AAPL,X:BTCUSD")})` |
+| `list_snapshot_options_chain(...)` | `c.GetOptionsChainWithResponse(ctx, underlying, params)` |
+| `get_last_trade(ticker)` | `c.GetLastStocksTradeWithResponse(ctx, ticker)` |
+
+**Pointer helpers:** Use `rest.Ptr(value)` for optional params. Example: `rest.Ptr(true)`, `rest.Ptr(200)`, `rest.Ptr("asc")`.
+
+**Timestamps:** Aggregates `Timestamp` field is Unix milliseconds (`int`). Convert with `time.UnixMilli(int64(bar.Timestamp))`. Trades use nanoseconds.
+
+**Pagination:** Auto-pagination is on by default. Disable with `rest.NewWithOptions("", rest.WithPagination(false))`.
+
+**Nil safety:** Always check `resp.JSON200 != nil && resp.JSON200.Results != nil` before dereferencing. Greeks and other optional fields are pointers.
+
+**WebSocket:**
+```go
+import (
+    massivews "github.com/massive-com/client-go/v3/websocket"
+    "github.com/massive-com/client-go/v3/websocket/models"
+)
+
+c, _ := massivews.New(massivews.Config{
+    APIKey: os.Getenv("MASSIVE_API_KEY"),
+    Feed:   massivews.Delayed,
+    Market: massivews.Stocks,
+})
+c.Subscribe(massivews.StocksTrades, "AAPL")
+c.Connect()
+for out := range c.Output() {
+    switch t := out.(type) {
+    case models.EquityTrade:
+        fmt.Println(t.Price, t.Size)
+    }
+}
+```
+Channel-based: `c.Output()` for messages, `c.Error()` for fatal errors. Topics: `massivews.StocksTrades`, `massivews.StocksQuotes`, `massivews.StocksMinAggs`, etc.
+
+## Kotlin/JVM SDK patterns
+
+```kotlin
+import io.github.cdimascio.dotenv.dotenv
+import org.openapitools.client.apis.DefaultApi
+import org.openapitools.client.infrastructure.ApiClient
+
+val env = dotenv()
+ApiClient.apiKey["apiKey"] = env["MASSIVE_API_KEY"]  // static map, set before creating client
+val api = DefaultApi()
+```
+
+**Gradle dependency** (JitPack, NOT Maven Central):
+```kotlin
+repositories {
+    maven("https://jitpack.io")
+    mavenCentral()
+}
+dependencies {
+    implementation("com.github.massive-com:client-jvm:v5.1.2")
+    implementation("io.github.cdimascio:dotenv-kotlin:6.4.1")
+}
+```
+
+**Key method mappings:**
+| Python | Kotlin |
+|---|---|
+| `list_aggs(...)` | `api.getStocksAggregates(ticker, mult, TimespanGetStocksAggregates.day, from, to, adjusted?, sort?, limit?)` |
+| `list_snapshot_options_chain(...)` | `api.getOptionsChain(underlying, strikePrice?, ..., expirationDateGte?, ..., limit?)` |
+| `get_last_trade(ticker)` | `api.getLastStocksTrade(ticker)` |
+
+**Bar fields are abbreviated:** `o`, `h`, `l`, `c`, `v`, `t` (same as JS). Results are nullable: `result.results?.forEach { ... }`.
+
+**Timestamps:** `t` field is Unix milliseconds. Convert with `Instant.ofEpochMilli(bar.t.toLong()).atZone(ZoneOffset.UTC)`.
+
+**Pagination:** Manual cursor-based via `nextUrl` on the response. No auto-pagination.
+
+**Options chain:** Strike prices use `java.math.BigDecimal`. Contract type and sort use typed enums: `ContractTypeGetOptionsChain.call`, `SortGetOptionsChain.strikePrice`.
+
+**WebSocket** (separate package `io.massive.kotlin.sdk.websocket`):
+```kotlin
+val client = MassiveWebSocketClient(
+    apiKey = env["MASSIVE_API_KEY"],
+    feed = Feed.Delayed,
+    market = Market.Stocks,
+    listener = object : DefaultMassiveWebSocketListener() {
+        override fun onAuthenticated(client: MassiveWebSocketClient) {
+            client.subscribeBlocking(listOf(
+                MassiveWebSocketSubscription(MassiveWebSocketChannel.Stocks.Trades, "AAPL")
+            ))
+        }
+        override fun onReceive(client: MassiveWebSocketClient, message: MassiveWebSocketMessage) {
+            when (message) {
+                is MassiveWebSocketMessage.StocksMessage.Trade -> println("${message.price}")
+                else -> {}
+            }
+        }
+    }
+)
+client.connectBlocking()
+```
+Subscribe after `onAuthenticated` fires. Three connect variants: `connect()` (suspend), `connectBlocking()`, `connectAsync(callback)`.
+
+## SDK method name cross-reference
+
+| Operation | Python | JS/TS | Go | Kotlin |
+|---|---|---|---|---|
+| Stock aggregates | `list_aggs` | `getStocksAggregates` | `GetStocksAggregatesWithResponse` | `getStocksAggregates` |
+| Universal snapshot | `list_universal_snapshots` | `getSnapshots` | `GetSnapshotsWithResponse` | `getSnapshots` |
+| Options chain | `list_snapshot_options_chain` | `getOptionsChain` | `GetOptionsChainWithResponse` | `getOptionsChain` |
+| Last trade | `get_last_trade` | `getLastStocksTrade` | `GetLastStocksTradeWithResponse` | `getLastStocksTrade` |
+| Last quote | `get_last_quote` | `getLastStocksQuote` | `GetLastStocksQuoteWithResponse` | `getLastStocksQuote` |
+| SMA | `get_sma` | `getStocksSMA` | `GetStocksSMAWithResponse` | `getStocksSMA` |
+| Market status | `get_market_status` | `getMarketStatus` | `GetMarketStatusWithResponse` | `getMarketStatus` |
+
 ## REST API coverage
 
 The REST API spans these categories. Use the MCP `search_endpoints` tool to find specific endpoints.
@@ -190,17 +362,14 @@ Save 20% with annual billing. Futures individual plans (except Basic) are "Comin
 
 ## Project structure
 
-Use `uv` as package manager. Standard layout:
-```
-my-project/
-  main.py            # or streamlit_app.py
-  pyproject.toml     # pin massive>=2.4.0
-  .env.example       # MASSIVE_API_KEY=your_key_here
-  .env               # actual key (gitignored)
-  README.md
-```
+All projects follow the same pattern: dependency file, entry point, `.env.example`, `.gitignore`, and README.
 
-Run with `uv sync && uv run python main.py`.
+| Language | Dependency file | Entry point | Run command |
+|---|---|---|---|
+| Python | `pyproject.toml` (pin `massive>=2.4.0`) | `main.py` | `uv sync && uv run python main.py` |
+| JS/TS | `package.json` (`@massive.com/client-js`) | `index.js` / `index.ts` | `npm install && node index.js` |
+| Go | `go.mod` (`client-go/v3`) | `main.go` | `go mod tidy && go run main.go` |
+| Kotlin | `build.gradle.kts` (`client-jvm:v5.1.2` from JitPack) | `src/main/kotlin/Main.kt` | `./gradlew run` |
 
 ## MCP server workflow
 
