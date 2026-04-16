@@ -25,7 +25,9 @@
   "mcpServers": "./.mcp.json",
   "userConfig": {
     "massive_api_key": {
+      "title": "Massive API Key",
       "description": "Your Massive API key from massive.com/dashboard",
+      "type": "string",
       "sensitive": true
     }
   }
