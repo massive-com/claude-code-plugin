@@ -162,5 +162,13 @@ headless = true
 4. Write `charts.py` with Plotly rendering functions
 5. Write panel modules for the chosen focus area
 6. Write `streamlit_app.py` with layout, sidebar, and panel composition
-7. Write `pyproject.toml`, `.env.example`, `.streamlit/config.toml`, README
-8. Confirm structure and provide run command: `uv sync && uv run streamlit run streamlit_app.py`
+7. Write `pyproject.toml`, `.env.example`, `.gitignore`, `.streamlit/config.toml`, README
+8. Provide quickstart:
+   ```
+   cd $0
+   cp .env.example .env
+   # Add your Massive API key to .env
+   uv sync
+   uv run streamlit run streamlit_app.py
+   ```
+9. Note: Dashboards use Streamlit (Python only). The user will need at least a Starter plan for snapshots and WebSocket data.

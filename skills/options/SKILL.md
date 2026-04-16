@@ -1,7 +1,7 @@
 ---
 name: options
 description: Build and analyze options strategies using Massive's options data. Supports covered calls, iron condors, spreads, and custom strategies. Use when building options screeners, analyzing Greeks, or constructing multi-leg strategies.
-argument-hint: "[strategy] [underlying ticker]"
+argument-hint: "[strategy] [underlying ticker] [language: python|javascript|typescript|go]"
 allowed-tools: mcp__massive__search_endpoints mcp__massive__get_endpoint_docs mcp__massive__call_api mcp__massive__query_data Write Edit Bash Read
 ---
 
@@ -9,23 +9,48 @@ allowed-tools: mcp__massive__search_endpoints mcp__massive__get_endpoint_docs mc
 
 Strategy: $0
 Underlying: $1 (default: SPY if not specified)
+Language: infer from context, default to Python if not specified.
 
-## Core SDK pattern for options
+## Output: a runnable project
+
+Create a project directory with the strategy name (e.g., `spy-bull-call-spread/`). The project must include:
+
+1. **Dependency file** (`pyproject.toml`, `package.json`, `go.mod`, etc.)
+2. **`.env.example`** with `MASSIVE_API_KEY=your_api_key_here`
+3. **`.gitignore`** with `.env` and language-specific entries
+4. **Entry point** (`main.py`, `index.js`, `main.go`, etc.) that implements the strategy
+5. **README.md** with quickstart instructions
+
+End with:
+```
+cd <project-name>
+cp .env.example .env
+# Add your Massive API key to .env
+```
+Then the language-specific install and run commands.
+
+## Python SDK pattern for options
 
 ```python
 from itertools import islice
+from dotenv import load_dotenv
 from massive import RESTClient
 
-client = RESTClient()
+load_dotenv()
+client = RESTClient()  # reads MASSIVE_API_KEY from .env
 
-# Fetch full options chain with Greeks and IV
+# Get current price
+last_trade = client.get_last_trade("SPY")  # returns single object, NOT an iterator
+spot = last_trade.price
+
+# Fetch options chain (list_ method, returns paginated iterator)
 chain = list(islice(
     client.list_snapshot_options_chain(
-        underlying_asset="AAPL",
+        underlying_asset="SPY",
         params={
             "expiration_date.gte": "2025-06-01",
             "expiration_date.lte": "2025-06-30",
-            "contract_type": "call",  # or "put"
+            "contract_type": "call",
             "limit": 250,
         }
     ),
@@ -47,6 +72,24 @@ for opt in chain:
     iv = opt.implied_volatility
     oi = opt.open_interest
     volume = opt.day.volume
+```
+
+## JavaScript/TypeScript SDK pattern
+
+```javascript
+import 'dotenv/config';
+import { restClient } from '@massive.com/client-js';
+
+const client = restClient(process.env.MASSIVE_API_KEY);
+
+const lastTrade = await client.lastTrade('SPY');
+const spot = lastTrade.results.price;
+
+const chain = await client.snapshotOptionChain('SPY', {
+  'expiration_date.gte': '2025-06-01',
+  'expiration_date.lte': '2025-06-30',
+  'contract_type': 'call',
+});
 ```
 
 ## Options ticker format
@@ -85,9 +128,9 @@ OCC symbology: `O:AAPL250117C00150000`
 3. Sort and rank by user criteria
 4. Output as formatted table or DataFrame
 
-## MCP server workflow
+## MCP server tools
 
-For interactive analysis, use the MCP tools:
+For exploring data before writing code, the MCP tools can help:
 
 1. `call_api` with `/v3/snapshot/options/{underlying}` and `store_as: "chain"`
 2. `query_data` with SQL to filter and rank:
@@ -99,13 +142,19 @@ For interactive analysis, use the MCP tools:
    LIMIT 20
    ```
 
-The MCP server has built-in Black-Scholes functions (`bs_price`, `bs_delta`, `bs_gamma`, `bs_theta`, `bs_vega`, `bs_rho`) and return calculations (`simple_return`, `log_return`, `cumulative_return`, `sharpe_ratio`, `sortino_ratio`) available via the `apply` parameter on `call_api`.
+Built-in financial functions available via `apply` parameter: Black-Scholes (`bs_price`, `bs_delta`, `bs_gamma`, `bs_theta`, `bs_vega`, `bs_rho`), returns (`simple_return`, `log_return`, `cumulative_return`, `sharpe_ratio`, `sortino_ratio`).
 
 ## Steps
 
 1. Determine which strategy the user wants from `$0`
-2. Get current underlying price
-3. Fetch the relevant options chain(s)
-4. Apply strategy-specific filtering and ranking
-5. Present results with risk/reward metrics
-6. Generate reusable Python code the user can run independently
+2. Create the project directory
+3. Write dependency file, `.env.example`, `.gitignore`
+4. Write the entry point script that:
+   a. Loads the API key from `.env`
+   b. Gets current underlying price
+   c. Fetches the relevant options chain(s)
+   d. Applies strategy-specific filtering and ranking
+   e. Prints results with risk/reward metrics
+5. Write README.md
+6. Provide quickstart: `cd <project>`, `cp .env.example .env`, install, run
+7. Note the minimum plan tier (Options Starter or above for Greeks/IV)

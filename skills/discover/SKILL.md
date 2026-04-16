@@ -25,9 +25,11 @@ The user needs: $ARGUMENTS
    **Python SDK:**
    ```python
    from itertools import islice
+   from dotenv import load_dotenv
    from massive import RESTClient
 
-   client = RESTClient()
+   load_dotenv()
+   client = RESTClient()  # reads MASSIVE_API_KEY from .env
    bars = list(islice(client.list_aggs("AAPL", 1, "day", "2025-01-01", "2025-06-01"), 200))
    ```
 
