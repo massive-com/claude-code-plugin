@@ -51,9 +51,11 @@ Run command: `uv sync && uv run python main.py`
 from itertools import islice
 from datetime import datetime, timezone
 from dotenv import load_dotenv
+
+load_dotenv()  # must come before importing RESTClient so env vars are set
+
 from massive import RESTClient
 
-load_dotenv()
 client = RESTClient()  # reads MASSIVE_API_KEY from .env
 
 bars = list(islice(client.list_aggs("AAPL", 1, "day", "2025-01-01", "2025-06-01", sort="asc"), 30))
@@ -125,13 +127,22 @@ import { restClient } from "@massive.com/client-js";
 
 const client = restClient(process.env.MASSIVE_API_KEY);
 
-const response = await client.getStocksAggregates("AAPL", 1, "day", "2025-01-01", "2025-06-01", true, "asc", 30);
+const response = await client.getStocksAggregates({
+  stocksTicker: "AAPL",
+  multiplier: 1,
+  timespan: "day",
+  from: "2025-01-01",
+  to: "2025-06-01",
+  adjusted: true,
+  sort: "asc",
+  limit: 30,
+});
 for (const bar of response.results ?? []) {
   const dt = new Date(bar.t);
   console.log(`${dt.toISOString().slice(0, 10)}  O:${bar.o}  H:${bar.h}  L:${bar.l}  C:${bar.c}  V:${bar.v}`);
 }
 ```
-Bar fields are abbreviated: `o` (open), `h` (high), `l` (low), `c` (close), `v` (volume), `t` (Unix ms timestamp). Convert with `new Date(bar.t)`.
+ALL SDK methods take a single object parameter with named fields. Bar fields are abbreviated: `o` (open), `h` (high), `l` (low), `c` (close), `v` (volume), `t` (Unix ms timestamp). Convert with `new Date(bar.t)`.
 
 Pagination: pass `{ pagination: true }` as third arg to `restClient()` to auto-follow `next_url`. Without it, you get a single page.
 
@@ -156,7 +167,7 @@ stocksWS.onmessage = ({ data }) => {
   }
 };
 ```
-WebSocket message events: `T` (trade), `Q` (quote), `A` (per-second agg), `AM` (per-minute agg). Market connections: `ws.stocks()`, `ws.options()`, `ws.crypto()`, `ws.forex()`, `ws.indices()`, `ws.futures()`.
+WebSocket returns W3CWebSocket instances. Message events: `T` (trade), `Q` (quote), `A` (per-second agg), `AM` (per-minute agg). Market connections: `ws.stocks()`, `ws.options()`, `ws.crypto()`, `ws.forex()`, `ws.indices()`, `ws.futures()`.
 
 ### Go
 
@@ -283,8 +294,19 @@ WebSocket uses channels: `c.Output()` for messages, `c.Error()` for fatal errors
 Dependencies: `build.gradle.kts`
 ```kotlin
 plugins {
-    kotlin("jvm") version "1.9.23"
+    kotlin("jvm") version "2.1.10"
     application
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+    }
 }
 
 application {
@@ -311,69 +333,81 @@ Entry point: `src/main/kotlin/Main.kt`
 
 Run command: `./gradlew run`
 
+Generate a Gradle wrapper so users don't need Gradle pre-installed:
+```bash
+# Run this after creating the project (requires Gradle installed on the dev machine)
+cd $0 && gradle wrapper
+```
+If Gradle is not available, include a note in the README that the user needs to install Gradle or the Gradle wrapper first.
+
 .gitignore additions: `.gradle/`, `build/`
 
 **rest Main.kt:**
 ```kotlin
 import io.github.cdimascio.dotenv.dotenv
-import org.openapitools.client.apis.DefaultApi
-import org.openapitools.client.apis.DefaultApi.TimespanGetStocksAggregates
-import org.openapitools.client.apis.DefaultApi.SortGetStocksAggregates
-import org.openapitools.client.infrastructure.ApiClient
+import io.polygon.kotlin.sdk.rest.PolygonRestClient
+import io.polygon.kotlin.sdk.rest.AggregatesParameters
 import java.time.Instant
 import java.time.ZoneOffset
 
 fun main() {
     val env = dotenv()
-    ApiClient.apiKey["apiKey"] = env["MASSIVE_API_KEY"]
+    val apiKey = env["MASSIVE_API_KEY"]
 
-    val api = DefaultApi()
+    val client = PolygonRestClient(apiKey)
 
-    val result = api.getStocksAggregates(
-        stocksTicker = "AAPL",
+    val params = AggregatesParameters(
+        ticker = "AAPL",
         multiplier = 1,
-        timespan = TimespanGetStocksAggregates.day,
-        from = "2025-01-01",
-        to = "2025-06-01",
-        adjusted = true,
-        sort = SortGetStocksAggregates.asc,
-        limit = 30
+        timespan = "day",
+        fromDate = "2025-01-01",
+        toDate = "2025-06-01",
+        unadjusted = false,
+        limit = 30,
+        sort = "asc"
     )
 
+    val result = client.getAggregatesBlocking(params)
+
+    println("Status: ${result.status}")
+    println("Results count: ${result.resultsCount}")
+    println()
+
     result.results?.forEach { bar ->
-        val dt = Instant.ofEpochMilli(bar.t.toLong()).atZone(ZoneOffset.UTC)
-        println("${dt.toLocalDate()}  O:${bar.o}  H:${bar.h}  L:${bar.l}  C:${bar.c}  V:${bar.v}")
+        val ts = bar.timestampMillis
+        val dt = if (ts != null) Instant.ofEpochMilli(ts).atZone(ZoneOffset.UTC).toLocalDate() else "N/A"
+        println("$dt  O:${bar.open}  H:${bar.high}  L:${bar.low}  C:${bar.close}  V:${bar.volume}")
     }
 }
 ```
-Bar fields are abbreviated: `o`, `h`, `l`, `c`, `v`, `t` (Unix ms). Results are nullable (`results?`).
+The SDK package is `io.polygon.kotlin.sdk`. Bar fields use full names: `open`, `high`, `low`, `close`, `volume`, `timestampMillis` (Unix ms, nullable Long). Results are nullable (`results?`).
 
-Auth: set `ApiClient.apiKey["apiKey"]` before creating `DefaultApi()`. Use `dotenv-kotlin` for .env loading.
+Auth: pass the API key directly to the `PolygonRestClient` constructor. Use `dotenv-kotlin` for .env loading.
 
 Pagination: manual cursor-based via `nextUrl` on the response. No auto-pagination.
 
 **websocket Main.kt:**
 ```kotlin
 import io.github.cdimascio.dotenv.dotenv
-import io.massive.kotlin.sdk.websocket.*
+import io.polygon.kotlin.sdk.websocket.*
 
 fun main() {
     val env = dotenv()
 
-    val client = MassiveWebSocketClient(
+    val client = PolygonWebSocketClient(
         apiKey = env["MASSIVE_API_KEY"],
         feed = Feed.Delayed,
         market = Market.Stocks,
-        listener = object : DefaultMassiveWebSocketListener() {
-            override fun onAuthenticated(client: MassiveWebSocketClient) {
+        listener = object : DefaultPolygonWebSocketListener() {
+            override fun onAuthenticated(client: PolygonWebSocketClient) {
                 client.subscribeBlocking(listOf(
-                    MassiveWebSocketSubscription(MassiveWebSocketChannel.Stocks.Trades, "AAPL")
+                    PolygonWebSocketSubscription(PolygonWebSocketChannel.Stocks.Trades, "AAPL")
                 ))
             }
 
-            override fun onReceive(client: MassiveWebSocketClient, message: MassiveWebSocketMessage) {
+            override fun onReceive(client: PolygonWebSocketClient, message: PolygonWebSocketMessage) {
                 when (message) {
-                    is MassiveWebSocketMessage.StocksMessage.Trade ->
+                    is PolygonWebSocketMessage.StocksMessage.Trade ->
                         println("Trade: ${message.ticker} @ ${message.price}")
                     else -> {}
                 }
@@ -383,7 +417,7 @@ fun main() {
     client.connectBlocking()
 }
 ```
-WebSocket package: `io.massive.kotlin.sdk.websocket`. Client uses listener pattern with `onAuthenticated`, `onReceive`, `onDisconnect`, `onError` callbacks. Subscribe after authentication.
+WebSocket package: `io.polygon.kotlin.sdk.websocket`. Client uses listener pattern with `onAuthenticated`, `onReceive`, `onDisconnect`, `onError` callbacks. Subscribe after authentication.
 
 For **websocket type** in Kotlin, add to `build.gradle.kts`:
 ```kotlin

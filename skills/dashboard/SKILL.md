@@ -15,7 +15,7 @@ Focus area: $1 (default: `multi-asset` if not specified)
 
 - No emojis anywhere, including Streamlit `page_icon`. Use a text string or None instead.
 - No em dashes. Use commas, periods, semicolons, or parentheses. For NA/missing values in tables, use "N/A" or "-", not an em dash.
-- Never reference "polygon.io". The API domain is `api.massive.com`.
+- The only valid API domain is `api.massive.com`. Never use any other API domain in generated code.
 
 ## Architecture
 
@@ -65,7 +65,17 @@ TTL_MACRO = 3600      # macro data refresh every hour
 def get_snapshot(api_key: str, tickers: tuple[str, ...]) -> dict:
     client = _get_client(api_key)
     return {s.ticker: s for s in client.list_universal_snapshots(ticker_any_of=list(tickers))}
+
+@st.cache_data(ttl=TTL_CHART, show_spinner=False)
+def get_aggs(api_key: str, ticker: str, multiplier: int, timespan: str, lookback_days: int) -> list:
+    client = _get_client(api_key)
+    from datetime import datetime, timedelta
+    from itertools import islice
+    to_date = datetime.now().strftime("%Y-%m-%d")
+    from_date = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+    return list(islice(client.list_aggs(ticker, multiplier, timespan, from_date, to_date, sort="asc"), 5000))
 ```
+Always pass `sort="asc"` to `list_aggs()` for chronological data.
 
 Note: pass `api_key` as a plain string and ticker lists as tuples so they are hashable for `st.cache_data`.
 
@@ -128,8 +138,8 @@ SDK: `list_universal_snapshots` with `X:` tickers, `list_aggs`.
 
 ### macro
 Panels: treasury yield curve, inflation chart, labor market indicators, fed funds rate.
-SDK: `list_treasury_yields()`, `list_inflation()`, `list_labor_market_indicators()`.
-For any raw REST calls, always use the base URL `https://api.massive.com` with `Authorization: Bearer` header. Never use any other API domain.
+SDK: `list_treasury_yields()`, `list_inflation()`, `list_labor_market_indicators()`, `get_market_status()`.
+Do NOT use the `requests` library or any raw HTTP calls. Use only the Massive Python SDK for all API calls. Do NOT add `requests` to `pyproject.toml`. If an SDK method is not available for a specific endpoint, note it in a comment but do not fall back to raw HTTP.
 Note: Economy/Federal Reserve data may require a specific plan tier. Check access at massive.com/dashboard.
 
 ## Dependencies

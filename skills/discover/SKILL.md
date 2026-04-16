@@ -44,9 +44,11 @@ Show the example matching the user's language. Always include .env loading.
 ```python
 from itertools import islice
 from dotenv import load_dotenv
+
+load_dotenv()  # must come before importing RESTClient so env vars are set
+
 from massive import RESTClient
 
-load_dotenv()
 client = RESTClient()  # reads MASSIVE_API_KEY from .env
 bars = list(islice(client.list_aggs("AAPL", 1, "day", "2025-01-01", "2025-06-01", sort="asc"), 200))
 ```
@@ -58,12 +60,15 @@ import "dotenv/config";
 import { restClient } from "@massive.com/client-js";
 
 const client = restClient(process.env.MASSIVE_API_KEY);
-const response = await client.getStocksAggregates("AAPL", 1, "day", "2025-01-01", "2025-06-01", true, "asc", 200);
+const response = await client.getStocksAggregates({
+  stocksTicker: "AAPL", multiplier: 1, timespan: "day",
+  from: "2025-01-01", to: "2025-06-01", adjusted: true, sort: "asc", limit: 200,
+});
 for (const bar of response.results ?? []) {
   console.log(bar.o, bar.h, bar.l, bar.c, bar.v, new Date(bar.t));
 }
 ```
-Method naming: `getStocksAggregates`, `getOptionsChain`, `getLastStocksTrade`, `getSnapshots`. Bar fields are abbreviated (`o`, `h`, `l`, `c`, `v`, `t`). Filters are positional params (e.g., `strikePriceGte`), not a dict. Pagination: pass `{ pagination: true }` as third arg to `restClient()`.
+ALL methods take a single object parameter with named fields. Method naming: `getStocksAggregates`, `getOptionsChain`, `getLastStocksTrade({ stocksTicker })`, `getSnapshots({ tickerAnyOf: "AAPL,X:BTCUSD" })`. Bar fields abbreviated (`o`, `h`, `l`, `c`, `v`, `t`). Pagination: `{ pagination: true }` as third arg to `restClient()`.
 
 ### Go
 ```go
@@ -87,17 +92,19 @@ Method naming: `GetStocksAggregatesWithResponse`, `GetOptionsChainWithResponse`,
 ### Kotlin
 ```kotlin
 import io.github.cdimascio.dotenv.dotenv
-import org.openapitools.client.apis.DefaultApi
-import org.openapitools.client.infrastructure.ApiClient
+import io.polygon.kotlin.sdk.rest.PolygonRestClient
+import io.polygon.kotlin.sdk.rest.AggregatesParameters
 
 val env = dotenv()
-ApiClient.apiKey["apiKey"] = env["MASSIVE_API_KEY"]
-val api = DefaultApi()
+val client = PolygonRestClient(env["MASSIVE_API_KEY"])
 
-val result = api.getStocksAggregates("AAPL", 1, TimespanGetStocksAggregates.day, "2025-01-01", "2025-06-01", true, SortGetStocksAggregates.asc, 200)
-result.results?.forEach { bar -> println("${bar.o} ${bar.h} ${bar.l} ${bar.c} ${bar.v} ${bar.t}") }
+val result = client.getAggregatesBlocking(AggregatesParameters(
+    ticker = "AAPL", multiplier = 1, timespan = "day",
+    fromDate = "2025-01-01", toDate = "2025-06-01", sort = "asc", limit = 200
+))
+result.results?.forEach { bar -> println("${bar.open} ${bar.high} ${bar.low} ${bar.close} ${bar.volume}") }
 ```
-Method naming: `getStocksAggregates`, `getOptionsChain`, `getLastStocksTrade`, `getSnapshots`. Uses typed enums for timespan/sort. Gradle dep: `com.github.massive-com:client-jvm:v5.1.2` from JitPack.
+SDK package: `io.polygon.kotlin.sdk`. Pass API key to `PolygonRestClient` constructor. Bar fields use full names (`open`, `high`, `low`, `close`, `volume`, `timestampMillis`). Gradle dep: `com.github.massive-com:client-jvm:v5.1.2` from JitPack.
 
 ## Ticker prefix reminder
 

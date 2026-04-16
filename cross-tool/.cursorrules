@@ -7,8 +7,11 @@ You are assisting a developer building with the Massive financial data API. Foll
 The Python SDK is `massive` on PyPI (v2.4.0, requires Python 3.9+). Pin `>=2.4.0` in pyproject.toml. Core imports:
 
 ```python
-from massive import RESTClient, WebSocketClient
 from dotenv import load_dotenv
+
+load_dotenv()  # must come before importing RESTClient
+
+from massive import RESTClient, WebSocketClient
 ```
 
 Initialize with `RESTClient()` (reads `MASSIVE_API_KEY` from env) or `RESTClient(api_key=key)`.
@@ -82,9 +85,27 @@ ws.run(handle_msg=handler)
 
 Subscription prefixes: `T.` trades, `A.` per-minute aggregates, `AS.` per-second aggregates, `Q.` quotes, `FMV.` fair market value.
 
+## Other SDKs
+
+Method names differ across SDKs. Key mappings:
+
+| Python | JS/TS (`@massive.com/client-js`) | Go (`client-go/v3`) | Kotlin (`client-jvm`) |
+|---|---|---|---|
+| `list_aggs(...)` | `getStocksAggregates({stocksTicker, ...})` | `GetStocksAggregatesWithResponse(...)` | `getStocksAggregates(...)` |
+| `list_snapshot_options_chain(...)` | `getOptionsChain({underlyingAsset, ...})` | `GetOptionsChainWithResponse(...)` | `getOptionsChain(...)` |
+| `get_last_trade(ticker)` | `getLastStocksTrade({stocksTicker})` | `GetLastStocksTradeWithResponse(ctx, ticker)` | `getLastStocksTrade(ticker)` |
+
+JS/TS: ALL methods take a single object parameter with named fields (not positional args). Bar fields are abbreviated (`o`, `h`, `l`, `c`, `v`, `t`). Pagination via `{ pagination: true }` option.
+
+Go: all methods use `WithResponse` suffix. Response data in `resp.JSON200`. Pointer helpers: `rest.Ptr(value)`. Always nil-check before dereferencing.
+
+Kotlin: SDK package is `io.polygon.kotlin.sdk`. Distributed via JitPack (`com.github.massive-com:client-jvm:v5.1.2`). Auth: pass key to `PolygonRestClient(apiKey)` constructor. Methods use `Blocking` suffix: `getAggregatesBlocking(AggregatesParameters(...))`. Bar fields are full names (`open`, `high`, `low`, `close`, `volume`, `timestampMillis`). No auto-pagination.
+
 ## Documentation
 
 - Full REST reference: https://massive.com/docs/rest/llms-full.txt
 - Python SDK: https://pypi.org/project/massive/
-- SDK source: https://github.com/massive-com/client-python
+- JS/TS SDK: https://github.com/massive-com/client-js
+- Go SDK: https://github.com/massive-com/client-go
+- Kotlin SDK: https://github.com/massive-com/client-jvm
 - MCP server: https://github.com/massive-com/mcp_massive

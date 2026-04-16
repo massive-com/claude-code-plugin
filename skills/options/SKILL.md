@@ -44,9 +44,11 @@ OCC symbology: `O:AAPL250117C00150000`
 ```python
 from itertools import islice
 from dotenv import load_dotenv
+
+load_dotenv()  # must come before importing RESTClient so env vars are set
+
 from massive import RESTClient
 
-load_dotenv()
 client = RESTClient()  # reads MASSIVE_API_KEY from .env
 
 # Get current price (returns single object, NOT an iterator)
@@ -91,26 +93,18 @@ import { restClient } from "@massive.com/client-js";
 const client = restClient(process.env.MASSIVE_API_KEY);
 
 // Get current price
-const lastTrade = await client.getLastStocksTrade("SPY");
+const lastTrade = await client.getLastStocksTrade({ stocksTicker: "SPY" });
 const spot = lastTrade.results.p;  // price field is abbreviated
 
-// Fetch options chain
-const chain = await client.getOptionsChain(
-    "SPY",           // underlyingAsset
-    undefined,       // strikePrice
-    undefined,       // expirationDate
-    "call",          // contractType
-    undefined,       // strikePriceGte
-    undefined,       // strikePriceGt
-    undefined,       // strikePriceLte
-    undefined,       // strikePriceLt
-    "2025-06-01",    // expirationDateGte
-    undefined,       // expirationDateGt
-    "2025-06-30",    // expirationDateLte
-    undefined,       // expirationDateLt
-    "asc",           // order
-    250              // limit
-);
+// Fetch options chain (all methods take a single object parameter)
+const chain = await client.getOptionsChain({
+    underlyingAsset: "SPY",
+    contractType: "call",
+    expirationDateGte: "2025-06-01",
+    expirationDateLte: "2025-06-30",
+    order: "asc",
+    limit: 250,
+});
 
 for (const opt of chain.results ?? []) {
     const strike = opt.details.strike_price;
@@ -123,7 +117,7 @@ for (const opt of chain.results ?? []) {
     const volume = opt.day.volume;
 }
 ```
-Note: JS SDK uses positional params for filters (not a params dict like Python). Greeks may be null.
+ALL JS SDK methods take a single object with named fields. Greeks may be null (use optional chaining).
 
 ### Go
 ```go
@@ -183,34 +177,32 @@ Go uses pointer params: `rest.Ptr(value)`. Greeks is a pointer (may be nil). Res
 ### Kotlin
 ```kotlin
 import io.github.cdimascio.dotenv.dotenv
-import org.openapitools.client.apis.DefaultApi
-import org.openapitools.client.apis.DefaultApi.ContractTypeGetOptionsChain
-import org.openapitools.client.apis.DefaultApi.OrderGetOptionsChain
-import org.openapitools.client.infrastructure.ApiClient
+import io.polygon.kotlin.sdk.rest.PolygonRestClient
+import io.polygon.kotlin.sdk.rest.SnapshotOptionsChainParameters
 
 fun main() {
     val env = dotenv()
-    ApiClient.apiKey["apiKey"] = env["MASSIVE_API_KEY"]
-    val api = DefaultApi()
+    val client = PolygonRestClient(env["MASSIVE_API_KEY"])
 
     // Get current price
-    val lastTrade = api.getLastStocksTrade("SPY")
-    // lastTrade.results.p is the price
+    val lastTrade = client.getLastTradeBlockingV2("SPY")
+    val spot = lastTrade.results?.price
 
     // Fetch options chain
-    val chain = api.getOptionsChain(
+    val params = SnapshotOptionsChainParameters(
         underlyingAsset = "SPY",
-        strikePriceGte = java.math.BigDecimal(500),
-        strikePriceLte = java.math.BigDecimal(600),
+        strikePriceGte = 500.0,
+        strikePriceLte = 600.0,
         expirationDateGte = "2025-06-01",
         expirationDateLte = "2025-06-30",
-        contractType = ContractTypeGetOptionsChain.call,
-        order = OrderGetOptionsChain.asc,
+        contractType = "call",
+        order = "asc",
         limit = 250
     )
+    val chain = client.getSnapshotOptionsChainBlocking(params)
 
     chain.results?.forEach { opt ->
-        println("Strike: ${opt.details.strikePrice}  Exp: ${opt.details.expirationDate}")
+        println("Strike: ${opt.details?.strikePrice}  Exp: ${opt.details?.expirationDate}")
         println("  IV: ${opt.impliedVolatility}  OI: ${opt.openInterest}")
         opt.greeks?.let { g ->
             println("  Delta: ${g.delta}  Gamma: ${g.gamma}  Theta: ${g.theta}  Vega: ${g.vega}")
@@ -218,7 +210,7 @@ fun main() {
     }
 }
 ```
-Kotlin uses `java.math.BigDecimal` for strike prices. Auth via `ApiClient.apiKey["apiKey"]`. Gradle dep: `com.github.massive-com:client-jvm:v5.1.2` from JitPack.
+SDK package is `io.polygon.kotlin.sdk`. Auth: pass API key to `PolygonRestClient` constructor. Gradle dep: `com.github.massive-com:client-jvm:v5.1.2` from JitPack.
 
 ## Strategy templates
 

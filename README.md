@@ -16,23 +16,24 @@ When you install this plugin, every Claude Code session automatically gets:
 
 | Command | What it does |
 |---|---|
-| `/massive:scaffold my-app rest` | Create a new project with pyproject.toml, .env, and working boilerplate |
-| `/massive:discover "options Greeks for SPY"` | Find the right API endpoint and show SDK usage |
-| `/massive:debug` | Diagnose API errors, empty results, or SDK issues |
-| `/massive:options "iron condor" SPY` | Build and analyze options strategies with live chain data |
-| `/massive:dashboard my-dash multi-asset` | Scaffold a Streamlit financial dashboard |
+| `/massive:scaffold my-app rest python` | Create a new project with dependencies, .env, and working boilerplate. Supports Python, JavaScript/TypeScript, Go, and Kotlin. |
+| `/massive:discover "options Greeks for SPY"` | Find the right API endpoint and show SDK usage in your language |
+| `/massive:debug` | Diagnose API errors, empty results, or SDK issues across all languages |
+| `/massive:options "iron condor" SPY python` | Build an options strategy as a runnable project with risk/reward analysis |
+| `/massive:dashboard my-dash multi-asset` | Scaffold a Streamlit financial dashboard with modular architecture |
 
 ## Example workflow
 
 ```
-You:    /massive:scaffold earnings-tracker rest
+You:    /massive:scaffold earnings-tracker rest python
 Claude: [creates project directory with pyproject.toml, .env.example, main.py, README]
 
 You:    Show me AAPL's last 30 days of daily bars and calculate the Sharpe ratio
 Claude: [calls the API via MCP, stores results, runs sharpe_ratio calculation, shows output]
 
-You:    Now add a chart of that data using Plotly
-Claude: [writes the chart code using the correct SDK patterns and timestamp handling]
+You:    Now build the same thing in Node.js
+Claude: /massive:scaffold earnings-tracker-js rest javascript
+        [creates package.json, index.js with getStocksAggregates({...}), .env.example]
 ```
 
 ## Installation
@@ -84,9 +85,14 @@ Full pricing details: [massive.com/pricing](https://massive.com/pricing)
 - Python 3.12+ (required by the MCP server; the Python SDK supports 3.9+)
 - A Massive API key ([massive.com/dashboard](https://massive.com/dashboard))
 
+For non-Python scaffolding:
+- **JavaScript/TypeScript:** Node.js 16+
+- **Go:** Go 1.21+
+- **Kotlin:** JDK 21+ and Gradle
+
 ## Official SDKs
 
-This plugin focuses on Python, but Massive provides official client libraries for multiple languages:
+All skills support Python, JavaScript/TypeScript, Go, and Kotlin. Massive provides official client libraries for each:
 
 | Language | Package | Repository |
 |---|---|---|

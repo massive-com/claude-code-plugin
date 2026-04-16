@@ -28,10 +28,11 @@ snapshots = client.list_universal_snapshots(ticker_any_of=["AAPL", "X:BTCUSD", "
 ## Python SDK patterns
 
 ```python
-from massive import RESTClient, WebSocketClient
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv()  # must come before importing RESTClient so env vars are set
+
+from massive import RESTClient, WebSocketClient
 
 # Client reads MASSIVE_API_KEY from env automatically
 client = RESTClient()
@@ -106,22 +107,37 @@ const client = restClient(process.env.MASSIVE_API_KEY);
 const client = restClient(process.env.MASSIVE_API_KEY, "https://api.massive.com", { pagination: true });
 ```
 
-**Method names differ from Python.** Key mappings:
-| Python | JS/TS |
-|---|---|
-| `list_aggs(ticker, mult, timespan, from_, to)` | `getStocksAggregates(ticker, mult, timespan, from, to, adjusted?, sort?, limit?)` |
-| `list_universal_snapshots(ticker_any_of=[...])` | `getSnapshots({ tickerAnyOf: "AAPL,X:BTCUSD" })` |
-| `list_snapshot_options_chain(underlying, params={})` | `getOptionsChain(underlying, ...positional filter params)` |
-| `get_last_trade(ticker)` | `getLastStocksTrade(ticker)` |
-| `get_last_quote(ticker)` | `getLastStocksQuote(ticker)` |
+**ALL methods take a single object parameter with named fields.** Do NOT use positional arguments.
+
+**Key method examples:**
+```javascript
+// Aggregates
+await client.getStocksAggregates({ stocksTicker: "AAPL", multiplier: 1, timespan: "day", from: "2025-01-01", to: "2025-06-01", sort: "asc" });
+await client.getCryptoAggregates({ cryptoTicker: "X:BTCUSD", multiplier: 1, timespan: "day", from: "...", to: "..." });
+
+// Last trade/quote
+await client.getLastStocksTrade({ stocksTicker: "AAPL" });
+await client.getLastStocksQuote({ stocksTicker: "AAPL" });
+
+// Universal snapshot (tickerAnyOf is a comma-separated STRING, not an array)
+await client.getSnapshots({ tickerAnyOf: "AAPL,X:BTCUSD,C:EURUSD,I:SPX" });
+
+// Options chain
+await client.getOptionsChain({ underlyingAsset: "AAPL", contractType: "call", expirationDateGte: "2025-06-01", strikePriceGte: 150, strikePriceLte: 200, limit: 250 });
+
+// Technical indicators (note: stockTicker, not stocksTicker)
+await client.getStocksSMA({ stockTicker: "AAPL", timespan: "day", window: 50, seriesType: "close" });
+await client.getStocksRSI({ stockTicker: "AAPL", timespan: "day", window: 14, seriesType: "close" });
+
+// Market status (no params needed)
+await client.getMarketStatus();
+```
 
 **Bar fields are abbreviated:** `o` (open), `h` (high), `l` (low), `c` (close), `v` (volume), `t` (Unix ms timestamp), `vw` (VWAP), `n` (transactions).
 
 **Timestamps:** Aggregates `t` field is milliseconds. Convert with `new Date(bar.t)`. Trades/quotes use nanoseconds; convert with `new Date(trade.t / 1_000_000)`.
 
 **Pagination:** NOT iterator-based. Pass `{ pagination: true }` as third arg to `restClient()` to auto-accumulate all pages. Without it, check `response.next_url` for manual pagination.
-
-**Filters:** Use positional parameters, not a params dict: `getOptionsChain("AAPL", undefined, undefined, "call", 150, undefined, 200, undefined, "2025-06-01")`.
 
 **WebSocket:**
 ```javascript
@@ -134,7 +150,7 @@ stocksWS.onmessage = ({ data }) => {
   }
 };
 ```
-Market connections: `ws.stocks()`, `ws.options()`, `ws.crypto()`, `ws.forex()`, `ws.indices()`, `ws.futures()`. Message events: `T` (trade), `Q` (quote), `A` (per-second agg), `AM` (per-minute agg).
+Returns W3CWebSocket instances. Market connections: `ws.stocks()`, `ws.options()`, `ws.crypto()`, `ws.forex()`, `ws.indices()`, `ws.futures()`. Message events: `T` (trade), `Q` (quote), `A` (per-second agg), `AM` (per-minute agg).
 
 ## Go SDK patterns
 
@@ -195,12 +211,11 @@ Channel-based: `c.Output()` for messages, `c.Error()` for fatal errors. Topics: 
 
 ```kotlin
 import io.github.cdimascio.dotenv.dotenv
-import org.openapitools.client.apis.DefaultApi
-import org.openapitools.client.infrastructure.ApiClient
+import io.polygon.kotlin.sdk.rest.PolygonRestClient
+import io.polygon.kotlin.sdk.rest.AggregatesParameters
 
 val env = dotenv()
-ApiClient.apiKey["apiKey"] = env["MASSIVE_API_KEY"]  // static map, set before creating client
-val api = DefaultApi()
+val client = PolygonRestClient(env["MASSIVE_API_KEY"])  // API key is a constructor param
 ```
 
 **Gradle dependency** (JitPack, NOT Maven Central):
@@ -215,36 +230,43 @@ dependencies {
 }
 ```
 
-**Key method mappings:**
-| Python | Kotlin |
-|---|---|
-| `list_aggs(...)` | `api.getStocksAggregates(ticker, mult, TimespanGetStocksAggregates.day, from, to, adjusted?, sort?, limit?)` |
-| `list_snapshot_options_chain(...)` | `api.getOptionsChain(underlying, strikePrice?, ..., expirationDateGte?, ..., limit?)` |
-| `get_last_trade(ticker)` | `api.getLastStocksTrade(ticker)` |
+**Key method examples:**
+```kotlin
+// Aggregates
+val result = client.getAggregatesBlocking(AggregatesParameters(
+    ticker = "AAPL", multiplier = 1, timespan = "day",
+    fromDate = "2025-01-01", toDate = "2025-06-01", sort = "asc", limit = 30
+))
+result.results?.forEach { bar ->
+    println("${bar.open} ${bar.high} ${bar.low} ${bar.close} ${bar.volume} ${bar.timestampMillis}")
+}
 
-**Bar fields are abbreviated:** `o`, `h`, `l`, `c`, `v`, `t` (same as JS). Results are nullable: `result.results?.forEach { ... }`.
+// Last trade
+val lastTrade = client.getLastTradeBlockingV2("AAPL")
+val price = lastTrade.results?.price
+```
 
-**Timestamps:** `t` field is Unix milliseconds. Convert with `Instant.ofEpochMilli(bar.t.toLong()).atZone(ZoneOffset.UTC)`.
+**SDK package is `io.polygon.kotlin.sdk`.** Bar fields use full names: `open`, `high`, `low`, `close`, `volume`, `timestampMillis` (nullable Long, Unix ms). Results are nullable: `result.results?.forEach { ... }`.
+
+**Timestamps:** `timestampMillis` is Unix milliseconds. Convert with `Instant.ofEpochMilli(bar.timestampMillis!!).atZone(ZoneOffset.UTC)`.
 
 **Pagination:** Manual cursor-based via `nextUrl` on the response. No auto-pagination.
 
-**Options chain:** Strike prices use `java.math.BigDecimal`. Contract type and sort use typed enums: `ContractTypeGetOptionsChain.call`, `SortGetOptionsChain.strikePrice`.
-
-**WebSocket** (separate package `io.massive.kotlin.sdk.websocket`):
+**WebSocket** (package `io.polygon.kotlin.sdk.websocket`):
 ```kotlin
-val client = MassiveWebSocketClient(
+val client = PolygonWebSocketClient(
     apiKey = env["MASSIVE_API_KEY"],
     feed = Feed.Delayed,
     market = Market.Stocks,
-    listener = object : DefaultMassiveWebSocketListener() {
-        override fun onAuthenticated(client: MassiveWebSocketClient) {
+    listener = object : DefaultPolygonWebSocketListener() {
+        override fun onAuthenticated(client: PolygonWebSocketClient) {
             client.subscribeBlocking(listOf(
-                MassiveWebSocketSubscription(MassiveWebSocketChannel.Stocks.Trades, "AAPL")
+                PolygonWebSocketSubscription(PolygonWebSocketChannel.Stocks.Trades, "AAPL")
             ))
         }
-        override fun onReceive(client: MassiveWebSocketClient, message: MassiveWebSocketMessage) {
+        override fun onReceive(client: PolygonWebSocketClient, message: PolygonWebSocketMessage) {
             when (message) {
-                is MassiveWebSocketMessage.StocksMessage.Trade -> println("${message.price}")
+                is PolygonWebSocketMessage.StocksMessage.Trade -> println("${message.price}")
                 else -> {}
             }
         }
@@ -258,13 +280,13 @@ Subscribe after `onAuthenticated` fires. Three connect variants: `connect()` (su
 
 | Operation | Python | JS/TS | Go | Kotlin |
 |---|---|---|---|---|
-| Stock aggregates | `list_aggs` | `getStocksAggregates` | `GetStocksAggregatesWithResponse` | `getStocksAggregates` |
-| Universal snapshot | `list_universal_snapshots` | `getSnapshots` | `GetSnapshotsWithResponse` | `getSnapshots` |
-| Options chain | `list_snapshot_options_chain` | `getOptionsChain` | `GetOptionsChainWithResponse` | `getOptionsChain` |
-| Last trade | `get_last_trade` | `getLastStocksTrade` | `GetLastStocksTradeWithResponse` | `getLastStocksTrade` |
-| Last quote | `get_last_quote` | `getLastStocksQuote` | `GetLastStocksQuoteWithResponse` | `getLastStocksQuote` |
-| SMA | `get_sma` | `getStocksSMA` | `GetStocksSMAWithResponse` | `getStocksSMA` |
-| Market status | `get_market_status` | `getMarketStatus` | `GetMarketStatusWithResponse` | `getMarketStatus` |
+| Stock aggregates | `list_aggs` | `getStocksAggregates({stocksTicker, ...})` | `GetStocksAggregatesWithResponse` | `getAggregatesBlocking(AggregatesParameters(...))` |
+| Universal snapshot | `list_universal_snapshots` | `getSnapshots({tickerAnyOf})` | `GetSnapshotsWithResponse` | `getSnapshotAllTickersBlocking(...)` |
+| Options chain | `list_snapshot_options_chain` | `getOptionsChain({underlyingAsset, ...})` | `GetOptionsChainWithResponse` | `getSnapshotOptionsChainBlocking(...)` |
+| Last trade | `get_last_trade` | `getLastStocksTrade({stocksTicker})` | `GetLastStocksTradeWithResponse` | `getLastTradeBlockingV2(ticker)` |
+| Last quote | `get_last_quote` | `getLastStocksQuote({stocksTicker})` | `GetLastStocksQuoteWithResponse` | `getLastQuoteBlockingV2(ticker)` |
+| SMA | `get_sma` | `getStocksSMA({stockTicker, ...})` | `GetStocksSMAWithResponse` | `getSMABlocking(...)` |
+| Market status | `get_market_status` | `getMarketStatus()` | `GetMarketStatusWithResponse` | `getMarketStatusBlocking()` |
 
 ## REST API coverage
 

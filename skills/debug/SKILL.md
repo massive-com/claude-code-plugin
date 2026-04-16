@@ -1,6 +1,7 @@
 ---
 name: debug
 description: Debug Massive API errors, unexpected responses, or SDK issues. Use when API calls return errors, data looks wrong, pagination isn't working, or the SDK behaves unexpectedly.
+argument-hint: "[paste error message or describe the issue]"
 disable-model-invocation: false
 allowed-tools: Read Grep mcp__massive__search_endpoints mcp__massive__get_endpoint_docs Bash
 ---
@@ -16,7 +17,7 @@ Read the user's code and error output, then diagnose the issue. Detect the langu
 - **Python:** Is `MASSIVE_API_KEY` in `.env`? Is `load_dotenv()` called before `RESTClient()`?
 - **JavaScript:** Is `import "dotenv/config"` at the top? Is `process.env.MASSIVE_API_KEY` passed to `restClient()`?
 - **Go:** Is `godotenv.Load()` called before `rest.New("")`? The Go client panics if the key is empty and `MASSIVE_API_KEY` env var is not set.
-- **Kotlin:** Is `ApiClient.apiKey["apiKey"]` set before creating `DefaultApi()`?
+- **Kotlin:** Is the API key passed to `PolygonRestClient(apiKey)` constructor?
 - Test with: `curl -H "Authorization: Bearer YOUR_KEY" "https://api.massive.com/v3/snapshot?ticker.any_of=AAPL"`
 
 ### HTTP 403 Forbidden
@@ -80,8 +81,11 @@ Read the user's code and error output, then diagnose the issue. Detect the langu
 - The response object may not have `results` if the request failed. Always use optional chaining: `response.results ?? []`.
 - Check `response.status` for error details.
 
-### Wrong method names
+### Wrong method names or calling convention
 - JS SDK uses `getStocksAggregates` (not `list_aggs`), `getOptionsChain` (not `list_snapshot_options_chain`), `getLastStocksTrade` (not `get_last_trade`).
+- ALL methods take a single object parameter: `client.getStocksAggregates({ stocksTicker: "AAPL", multiplier: 1, timespan: "day", from: "...", to: "..." })`. Do NOT use positional arguments.
+- Technical indicator methods use `stockTicker` (no 's'): `getStocksSMA({ stockTicker: "AAPL", ... })`.
+- `getSnapshots` takes `tickerAnyOf` as a comma-separated string, NOT an array.
 - Bar fields are abbreviated: `o` (open), `h` (high), `l` (low), `c` (close), `v` (volume), `t` (timestamp in ms).
 
 ### Pagination
@@ -124,8 +128,8 @@ Read the user's code and error output, then diagnose the issue. Detect the langu
 ## Kotlin-specific errors
 
 ### `NullPointerException` or missing API key
-- Must set `ApiClient.apiKey["apiKey"]` before creating `DefaultApi()`. This is a static map, not a constructor param.
-- Use `dotenv-kotlin` to load `.env`: `val env = dotenv(); ApiClient.apiKey["apiKey"] = env["MASSIVE_API_KEY"]`.
+- Pass the API key directly to the `PolygonRestClient` constructor: `PolygonRestClient(apiKey)`.
+- Use `dotenv-kotlin` to load `.env`: `val env = dotenv(); val client = PolygonRestClient(env["MASSIVE_API_KEY"])`.
 
 ### Null results
 - `results` is nullable. Always use safe calls: `result.results?.forEach { ... }`.
@@ -135,11 +139,15 @@ Read the user's code and error output, then diagnose the issue. Detect the langu
 - The SDK is on JitPack (NOT Maven Central). Gradle dep: `implementation("com.github.massive-com:client-jvm:v5.1.2")`.
 - Must add `maven("https://jitpack.io")` to repositories.
 
-### Strike prices are BigDecimal
-- Options chain filter params use `java.math.BigDecimal` for strike prices, not `Double` or `Float`.
+### Wrong class names or imports
+- The SDK package is `io.polygon.kotlin.sdk`, not `org.openapitools` or `io.massive`.
+- REST client: `io.polygon.kotlin.sdk.rest.PolygonRestClient`, not `DefaultApi`.
+- Methods use `Blocking` suffix: `getAggregatesBlocking(AggregatesParameters(...))`, not `getStocksAggregates(...)`.
+- Bar fields use full names: `bar.open`, `bar.high`, `bar.close`, `bar.volume`, `bar.timestampMillis` (not `bar.o`, `bar.h`, etc.).
 
 ### WebSocket
-- Import from `io.massive.kotlin.sdk.websocket.*` (separate package from REST).
+- Import from `io.polygon.kotlin.sdk.websocket.*`.
+- Classes use `Polygon` prefix: `PolygonWebSocketClient`, `PolygonWebSocketChannel`, `PolygonWebSocketMessage`.
 - Subscribe after `onAuthenticated` callback fires.
 - Three connect variants: `connect()` (suspend), `connectBlocking()`, `connectAsync(callback)`.
 
