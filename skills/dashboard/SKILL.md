@@ -11,6 +11,12 @@ allowed-tools: Write Edit Bash Read
 Project name: $0 (default: `dashboard` if not specified)
 Focus area: $1 (default: `multi-asset` if not specified)
 
+## Brand rules (apply to ALL generated files)
+
+- No emojis anywhere, including Streamlit `page_icon`. Use a text string or None instead.
+- No em dashes. Use commas, periods, semicolons, or parentheses. For NA/missing values in tables, use "N/A" or "-", not an em dash.
+- Never reference "polygon.io". The API domain is `api.massive.com`.
+
 ## Architecture
 
 Follow this modular structure (proven in the Bloomberg terminal demo):
@@ -109,8 +115,8 @@ if "trade_buffer" not in st.session_state:
 
 ### multi-asset (default)
 Panels: watchlist (equities + crypto + forex + indices), price chart with indicators, market status.
-SDK: `list_universal_snapshots`, `list_aggs`, `get_sma`/`get_ema`/`get_rsi`/`get_macd`.
-REST: `GET /v1/marketstatus/now` for market status.
+SDK: `list_universal_snapshots`, `list_aggs`, `get_sma`/`get_ema`/`get_rsi`/`get_macd`, `get_market_status()`.
+For market status, use `client.get_market_status()` from the SDK. Do NOT make raw REST calls to any domain other than `api.massive.com`.
 
 ### options
 Panels: options chain table, Greeks heatmap, P&L diagram, underlying price chart.
@@ -122,8 +128,8 @@ SDK: `list_universal_snapshots` with `X:` tickers, `list_aggs`.
 
 ### macro
 Panels: treasury yield curve, inflation chart, labor market indicators, fed funds rate.
-REST: `GET /fed/v1/treasury-yields`, `GET /fed/v1/inflation`, `GET /fed/v1/labor-market`.
-Use the MCP `call_api` tool or direct REST calls for these endpoints; SDK methods may not exist for all economy endpoints.
+SDK: `list_treasury_yields()`, `list_inflation()`, `list_labor_market_indicators()`.
+For any raw REST calls, always use the base URL `https://api.massive.com` with `Authorization: Bearer` header. Never use any other API domain.
 Note: Economy/Federal Reserve data may require a specific plan tier. Check access at massive.com/dashboard.
 
 ## Dependencies

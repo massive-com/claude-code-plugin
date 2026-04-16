@@ -1,7 +1,7 @@
 ---
 name: options
 description: Build and analyze options strategies using Massive's options data. Supports covered calls, iron condors, spreads, and custom strategies. Use when building options screeners, analyzing Greeks, or constructing multi-leg strategies.
-argument-hint: "[strategy] [underlying ticker] [language: python|javascript|typescript|go]"
+argument-hint: "[strategy] [underlying ticker] [language: python|javascript|typescript|go|kotlin]"
 allowed-tools: mcp__massive__search_endpoints mcp__massive__get_endpoint_docs mcp__massive__call_api mcp__massive__query_data Write Edit Bash Read
 ---
 
@@ -15,10 +15,10 @@ Language: infer from context, default to Python if not specified.
 
 Create a project directory with the strategy name (e.g., `spy-bull-call-spread/`). The project must include:
 
-1. **Dependency file** (`pyproject.toml`, `package.json`, `go.mod`, etc.)
+1. **Dependency file** (`pyproject.toml`, `package.json`, `go.mod`, `build.gradle.kts`). The Python package is `massive` on PyPI (NOT `massive-sdk` or `massive-api`). Pin `massive>=2.4.0`.
 2. **`.env.example`** with `MASSIVE_API_KEY=your_api_key_here`
 3. **`.gitignore`** with `.env` and language-specific entries
-4. **Entry point** (`main.py`, `index.js`, `main.go`, etc.) that implements the strategy
+4. **Entry point** that implements the strategy
 5. **README.md** with quickstart instructions
 
 End with:
@@ -29,8 +29,18 @@ cp .env.example .env
 ```
 Then the language-specific install and run commands.
 
-## Python SDK pattern for options
+## Options ticker format
 
+OCC symbology: `O:AAPL250117C00150000`
+- `O:` prefix
+- `AAPL` underlying (padded to 6 chars in OCC, but SDK handles this)
+- `250117` expiration (YYMMDD)
+- `C` or `P` for call/put
+- `00150000` strike price * 1000 (8 digits)
+
+## SDK patterns for options chain
+
+### Python
 ```python
 from itertools import islice
 from dotenv import load_dotenv
@@ -39,8 +49,8 @@ from massive import RESTClient
 load_dotenv()
 client = RESTClient()  # reads MASSIVE_API_KEY from .env
 
-# Get current price
-last_trade = client.get_last_trade("SPY")  # returns single object, NOT an iterator
+# Get current price (returns single object, NOT an iterator)
+last_trade = client.get_last_trade("SPY")
 spot = last_trade.price
 
 # Fetch options chain (list_ method, returns paginated iterator)
@@ -57,11 +67,10 @@ chain = list(islice(
     1000
 ))
 
-# Each option has:
 for opt in chain:
     strike = opt.details.strike_price
     expiry = opt.details.expiration_date
-    contract_type = opt.details.contract_type  # "call" or "put"
+    contract_type = opt.details.contract_type
     bid = opt.last_quote.bid
     ask = opt.last_quote.ask
     midpoint = opt.last_quote.midpoint
@@ -74,37 +83,147 @@ for opt in chain:
     volume = opt.day.volume
 ```
 
-## JavaScript/TypeScript SDK pattern
-
+### JavaScript / TypeScript
 ```javascript
-import 'dotenv/config';
-import { restClient } from '@massive.com/client-js';
+import "dotenv/config";
+import { restClient } from "@massive.com/client-js";
 
 const client = restClient(process.env.MASSIVE_API_KEY);
 
-const lastTrade = await client.lastTrade('SPY');
-const spot = lastTrade.results.price;
+// Get current price
+const lastTrade = await client.getLastStocksTrade("SPY");
+const spot = lastTrade.results.p;  // price field is abbreviated
 
-const chain = await client.snapshotOptionChain('SPY', {
-  'expiration_date.gte': '2025-06-01',
-  'expiration_date.lte': '2025-06-30',
-  'contract_type': 'call',
-});
+// Fetch options chain
+const chain = await client.getOptionsChain(
+    "SPY",           // underlyingAsset
+    undefined,       // strikePrice
+    undefined,       // expirationDate
+    "call",          // contractType
+    undefined,       // strikePriceGte
+    undefined,       // strikePriceGt
+    undefined,       // strikePriceLte
+    undefined,       // strikePriceLt
+    "2025-06-01",    // expirationDateGte
+    undefined,       // expirationDateGt
+    "2025-06-30",    // expirationDateLte
+    undefined,       // expirationDateLt
+    "asc",           // order
+    250              // limit
+);
+
+for (const opt of chain.results ?? []) {
+    const strike = opt.details.strike_price;
+    const expiry = opt.details.expiration_date;
+    const bid = opt.last_quote.bid;
+    const ask = opt.last_quote.ask;
+    const delta = opt.greeks?.delta;
+    const iv = opt.implied_volatility;
+    const oi = opt.open_interest;
+    const volume = opt.day.volume;
+}
 ```
+Note: JS SDK uses positional params for filters (not a params dict like Python). Greeks may be null.
 
-## Options ticker format
+### Go
+```go
+package main
 
-OCC symbology: `O:AAPL250117C00150000`
-- `O:` prefix
-- `AAPL` underlying (padded to 6 chars in OCC, but SDK handles this)
-- `250117` expiration (YYMMDD)
-- `C` or `P` for call/put
-- `00150000` strike price * 1000 (8 digits)
+import (
+    "context"
+    "fmt"
+    "log"
+
+    "github.com/joho/godotenv"
+    "github.com/massive-com/client-go/v3/rest"
+    "github.com/massive-com/client-go/v3/rest/gen"
+)
+
+func main() {
+    godotenv.Load()
+    c := rest.New("")
+
+    // Get current price
+    tradeResp, err := c.GetLastStocksTradeWithResponse(context.Background(), "SPY")
+    if err != nil {
+        log.Fatal(err)
+    }
+    // spot price: tradeResp.JSON200.Results fields
+
+    // Fetch options chain
+    params := &gen.GetOptionsChainParams{
+        StrikePriceGte:    rest.Ptr(float32(500)),
+        StrikePriceLte:    rest.Ptr(float32(600)),
+        ExpirationDateGte: rest.Ptr("2025-06-01"),
+        ExpirationDateLte: rest.Ptr("2025-06-30"),
+        ContractType:      (*gen.GetOptionsChainParamsContractType)(rest.Ptr("call")),
+        Limit:             rest.Ptr(250),
+        Order:             (*gen.GetOptionsChainParamsOrder)(rest.Ptr("asc")),
+    }
+
+    resp, err := c.GetOptionsChainWithResponse(context.Background(), "SPY", params)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    if resp.JSON200 != nil && resp.JSON200.Results != nil {
+        for _, opt := range *resp.JSON200.Results {
+            fmt.Printf("Strike: %.2f  Exp: %s  IV: %.4f\n",
+                opt.Details.StrikePrice, opt.Details.ExpirationDate, *opt.ImpliedVolatility)
+            if opt.Greeks != nil {
+                fmt.Printf("  Delta: %.4f  Gamma: %.4f  Theta: %.4f  Vega: %.4f\n",
+                    opt.Greeks.Delta, opt.Greeks.Gamma, opt.Greeks.Theta, opt.Greeks.Vega)
+            }
+        }
+    }
+}
+```
+Go uses pointer params: `rest.Ptr(value)`. Greeks is a pointer (may be nil). Response data is in `resp.JSON200`.
+
+### Kotlin
+```kotlin
+import io.github.cdimascio.dotenv.dotenv
+import org.openapitools.client.apis.DefaultApi
+import org.openapitools.client.apis.DefaultApi.ContractTypeGetOptionsChain
+import org.openapitools.client.apis.DefaultApi.OrderGetOptionsChain
+import org.openapitools.client.infrastructure.ApiClient
+
+fun main() {
+    val env = dotenv()
+    ApiClient.apiKey["apiKey"] = env["MASSIVE_API_KEY"]
+    val api = DefaultApi()
+
+    // Get current price
+    val lastTrade = api.getLastStocksTrade("SPY")
+    // lastTrade.results.p is the price
+
+    // Fetch options chain
+    val chain = api.getOptionsChain(
+        underlyingAsset = "SPY",
+        strikePriceGte = java.math.BigDecimal(500),
+        strikePriceLte = java.math.BigDecimal(600),
+        expirationDateGte = "2025-06-01",
+        expirationDateLte = "2025-06-30",
+        contractType = ContractTypeGetOptionsChain.call,
+        order = OrderGetOptionsChain.asc,
+        limit = 250
+    )
+
+    chain.results?.forEach { opt ->
+        println("Strike: ${opt.details.strikePrice}  Exp: ${opt.details.expirationDate}")
+        println("  IV: ${opt.impliedVolatility}  OI: ${opt.openInterest}")
+        opt.greeks?.let { g ->
+            println("  Delta: ${g.delta}  Gamma: ${g.gamma}  Theta: ${g.theta}  Vega: ${g.vega}")
+        }
+    }
+}
+```
+Kotlin uses `java.math.BigDecimal` for strike prices. Auth via `ApiClient.apiKey["apiKey"]`. Gradle dep: `com.github.massive-com:client-jvm:v5.1.2` from JitPack.
 
 ## Strategy templates
 
 ### Covered call
-1. Fetch current stock price via `get_last_trade(underlying)`
+1. Fetch current stock price via last trade
 2. Fetch call options chain for target expiration
 3. Filter: OTM calls (strike > current price), delta between 0.15-0.40
 4. Rank by: premium/strike ratio, annualized return, probability OTM

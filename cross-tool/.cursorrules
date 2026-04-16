@@ -27,7 +27,7 @@ Initialize with `RESTClient()` (reads `MASSIVE_API_KEY` from env) or `RESTClient
 ## Key SDK methods
 
 - `list_aggs(ticker, multiplier, timespan, from_, to)` - OHLCV bars
-- `list_universal_snapshots(tickers)` - live snapshot across asset classes
+- `list_universal_snapshots(ticker_any_of=[...])` - live snapshot across asset classes
 - `list_snapshot_options_chain(underlying_asset, params={})` - options chain with Greeks/IV
 - `get_last_trade(ticker)`, `get_last_quote(ticker)` - most recent trade/quote
 - `list_trades(ticker)`, `list_quotes(ticker)` - historical trades/quotes
