@@ -1,7 +1,7 @@
 {
   "name": "massive",
-  "version": "1.1.0",
-  "description": "Massive financial data API plugin. Adds API knowledge, endpoint discovery, project scaffolding, and auto-configured MCP tools for building with Massive's REST and WebSocket APIs across equities, options, crypto, forex, indices, and futures.",
+  "version": "0.1.0",
+  "description": "Massive financial data API plugin for Claude Code. Loads SDK knowledge, ticker conventions, and common failure modes into every session, plus five slash commands for scaffolding projects, finding endpoints, debugging errors, building options strategies, and creating Streamlit dashboards. Pairs with the Massive MCP server (installed separately) for live API access.",
   "author": {
     "name": "Massive",
     "url": "https://massive.com"
@@ -18,18 +18,7 @@
     "crypto",
     "forex",
     "indices",
-    "futures",
-    "mcp"
+    "futures"
   ],
-  "skills": "./skills",
-  "mcpServers": "./.mcp.json",
-  "userConfig": {
-    "massive_api_key": {
-      "title": "Massive API Key",
-      "description": "Your Massive API key from massive.com/dashboard",
-      "type": "string",
-      "sensitive": true,
-      "required": true
-    }
-  }
+  "skills": "./skills"
 }

@@ -37,9 +37,9 @@ Loaded every session. Covers:
 | `/massive:options "iron condor" SPY python` | Builds a runnable options strategy as a project. Screens the chain, calculates max profit / max loss / breakeven, ranks by risk-reward. Expiration dates are derived from today, not hardcoded. |
 | `/massive:dashboard my-dash multi-asset` | Modular Streamlit dashboard with a cached data layer and Plotly charts. Four focus areas: multi-asset, options, crypto, macro. |
 
-### Live API via MCP
+### Live API via MCP (optional, installed separately)
 
-The [Massive MCP server](https://github.com/massive-com/mcp_massive) starts automatically when the plugin loads and auto-updates to the latest upstream on every session (via `uvx --refresh`). Three tools:
+The [Massive MCP server](https://github.com/massive-com/mcp_massive) is a separate install (see [Getting started](#2-install-the-massive-mcp-server-optional), steps 2-3). Once registered with `claude mcp add`, Claude gets three tools:
 
 - `search_endpoints(query)`: find endpoints by natural-language description.
 - `call_api(endpoint, params, store_as)`: call a REST endpoint and optionally save the response as a DataFrame.
@@ -47,38 +47,60 @@ The [Massive MCP server](https://github.com/massive-com/mcp_massive) starts auto
 
 Reach for these when you need to see what an endpoint actually returns before writing code against it, or when something in your code isn't returning what you expected. REST endpoints are polled. Real-time streaming lives on the WebSocket feeds, not in these tools.
 
+Skip the MCP install if you only want knowledge + skills. The plugin still works; you just won't get live-data lookups from inside a session.
+
 ## Getting started
 
 ### 1. Prereqs
 
 - [Claude Code](https://claude.ai/code) CLI. Check with `claude --version`.
-- [uv](https://docs.astral.sh/uv/), for the Massive MCP server. Check with `uvx --version`. Install with `curl -LsSf https://astral.sh/uv/install.sh | sh` (macOS or Linux) or `pip install uv`.
+- [uv](https://docs.astral.sh/uv/), to install the Massive MCP server (only needed for live-API features). Check with `uv --version`. Install with `curl -LsSf https://astral.sh/uv/install.sh | sh` (macOS or Linux) or `pip install uv`.
 - A Massive API key from [massive.com/dashboard](https://massive.com/dashboard). The free Basic tier is enough to start (end-of-day data, 5 calls/min).
 
 For scaffolding in languages other than Python, you'll also need Node.js 16+, Go 1.21+, or JDK 21+ with Gradle, depending on the language you pick. The plugin itself doesn't require these; they only matter when `/massive:scaffold` creates a project in that language and you want to run it.
 
-### 2. Install the plugin
+### 2. Install the Massive MCP server (optional)
+
+The [Massive MCP server](https://github.com/massive-com/mcp_massive) lets Claude inspect real API responses, fetch live data for debugging, and explore endpoints before writing code. Install it once as a shared `uv` tool on your `$PATH`:
+
+```bash
+uv tool install git+https://github.com/massive-com/mcp_massive
+```
+
+`mcp_massive` is now shared across Claude Code and any other MCP-aware tool (Codex, for example). Upgrade later with `uv tool upgrade mcp-massive`. For alternate install paths and advanced options, see the [mcp_massive repo](https://github.com/massive-com/mcp_massive).
+
+Skip if you don't need live-API features. The plugin's knowledge and skills still work without it.
+
+### 3. Register the MCP server with Claude Code (optional)
+
+```bash
+claude mcp add massive --scope user \
+  --env MASSIVE_API_KEY=your_key -- \
+  mcp_massive
+```
+
+This writes the server entry into `~/.claude.json` so every Claude Code session uses it. Rotate the key later with `claude mcp remove massive` followed by the same `add` command with the new key. Skip if you skipped step 2.
+
+### 4. Install the plugin
 
 ```bash
 claude plugin marketplace add massive-com/claude-code-plugin
 claude plugin install massive@massive-claude-code-plugin
 ```
 
-Paste your API key when prompted. It goes into your system keychain, not a file on disk.
+Knowledge loads in every Claude Code session on this machine. No per-project setup, no key prompt (the key lives with the MCP server you set up in step 3, not the plugin).
 
-After that, the plugin loads in every Claude Code session on this machine. No per-project setup.
+### 5. Verify it works
 
-### 3. Verify it works
-
-Open Claude Code in any directory and check three things:
+Open Claude Code in any directory and check:
 
 1. Run `/reload-plugins`. Expect `1 plugins · 5 skills · 0 errors`.
-2. Ask: `What MCP tools do you have from Massive?` Should list `search_endpoints`, `call_api`, `query_data`.
-3. Ask: `Call the Massive API for AAPL's last trade.` Should return a live price.
+2. Run `/mcp`. Expect `massive` listed as connected (if you did steps 2-3).
+3. Ask: `Call the Massive API for AAPL's last trade.` Should return a live price when the MCP server is registered, or a note that live data isn't available when it isn't.
 
-If any step fails, jump to [Troubleshooting](#troubleshooting).
+If anything fails, jump to [Troubleshooting](#troubleshooting).
 
-### 4. Try it out
+### 6. Try it out
 
 Point Claude at a directory (new or existing) and scaffold your first project:
 
@@ -118,36 +140,20 @@ claude --plugin-dir .
 
 Run `/reload-plugins` after changes. Expect `1 plugins · 5 skills · 0 errors`.
 
-**Local testing gotcha.** `--plugin-dir` doesn't populate `user_config.massive_api_key`, so the MCP server receives an empty string from the `${user_config.massive_api_key}` interpolation in `.mcp.json`. `call_api` and `query_data` will return 401. To exercise authenticated MCP tools locally, keep `--plugin-dir .` for the skills and add `--mcp-config` pointing at an override that omits the `env` block, so the MCP subprocess inherits `MASSIVE_API_KEY` from your shell:
-
-```json
-{
-  "mcpServers": {
-    "massive": {
-      "command": "uvx",
-      "args": ["--refresh", "--from", "git+https://github.com/massive-com/mcp_massive", "mcp_massive"]
-    }
-  }
-}
-```
-
-```bash
-export MASSIVE_API_KEY=your_key
-claude --plugin-dir . --mcp-config /path/to/local.mcp.json
-```
+The plugin no longer bundles an MCP config, so there's nothing tricky here. If you've registered the Massive MCP server at user scope (Getting started steps 2-3), it's available in this local-dev session too. Otherwise, you're running skills + knowledge only.
 
 ## Troubleshooting
 
-### MCP server won't start
+### MCP server not listed
 
-The MCP server is spawned via [`uvx`](https://docs.astral.sh/uv/guides/tools/) and needs Python 3.12 or newer.
+Run `/mcp` in Claude Code. If `massive` isn't there:
 
-- `uvx: command not found`: install `uv`. macOS or Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`. Otherwise: `pip install uv`.
-- Python too old: `uvx` will download 3.12 on first run if you have network access. Offline, install it yourself.
-- Every launch takes 5 to 10 seconds because `--refresh` forces uvx to re-check the upstream git repo so the server stays current. Remove `--refresh` from `.mcp.json` if you'd rather cache indefinitely (you'll then need `uv cache clean` to force an update).
-- MCP tools still not visible: restart Claude Code. If it still fails, run with `claude --debug` and look for `mcp_massive` in the log.
-- Manual smoke test, outside Claude Code: `uvx --refresh --from git+https://github.com/massive-com/mcp_massive mcp_massive` should spin up a running process.
-- Offline: `--refresh` needs network. If you're offline, drop it temporarily from `.mcp.json` or pin to a cached tag (`@v0.9.1`).
+- `mcp_massive` binary missing: run `uv tool install git+https://github.com/massive-com/mcp_massive`. Check with `which mcp_massive`.
+- `uv` missing: install it first (`curl -LsSf https://astral.sh/uv/install.sh | sh` or `pip install uv`). `mcp_massive` needs Python 3.12+; `uv tool install` fetches it automatically on first use.
+- Server not registered: run `claude mcp add massive --scope user --env MASSIVE_API_KEY=your_key -- mcp_massive`. Restart Claude Code.
+- Still not visible: run `claude --debug` and look for `mcp_massive` in the log. `claude mcp list` should show `✓ Connected`; if it shows an error, that's your clue.
+- Manual smoke test outside Claude Code: running `mcp_massive` in a terminal should start a process that waits for stdin. Ctrl-C to stop.
+- Upgrade the server: `uv tool upgrade mcp-massive`.
 
 ### Plugin didn't load
 
@@ -157,9 +163,15 @@ The MCP server is spawned via [`uvx`](https://docs.astral.sh/uv/guides/tools/) a
 
 ### 401 Unauthorized
 
-- **Installed via marketplace.** The key lives in your system keychain. Reinstall to re-prompt: `claude plugin uninstall massive@massive-claude-code-plugin && claude plugin install massive@massive-claude-code-plugin`.
-- **Local mode with `--plugin-dir`.** See "Local testing gotcha" above; the plugin's `.mcp.json` uses user_config interpolation that won't pick up a shell env var.
-- **Key rotated or revoked.** Regenerate at [massive.com/dashboard](https://massive.com/dashboard) and reinstall.
+The key lives with the MCP server registration, not the plugin. Update it with:
+
+```bash
+claude mcp remove massive
+claude mcp add massive --scope user --env MASSIVE_API_KEY=new_key -- mcp_massive
+```
+
+- **Stale key cached:** restart Claude Code. The MCP subprocess re-reads config at session start.
+- **Key rotated or revoked:** regenerate at [massive.com/dashboard](https://massive.com/dashboard) and re-register as above.
 
 ### Rate limited (429) on Basic
 

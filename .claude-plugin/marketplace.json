@@ -5,12 +5,12 @@
     "url": "https://massive.com"
   },
   "metadata": {
-    "description": "Official Massive marketplace for Claude Code. Install the Massive plugin for API knowledge, endpoint discovery, project scaffolding, and auto-configured MCP tools across equities, options, crypto, forex, indices, and futures."
+    "description": "Official Massive marketplace for Claude Code. Install the Massive plugin for API knowledge and five workflow skills across equities, options, crypto, forex, indices, and futures. Pairs with the Massive MCP server (installed separately) for live API access."
   },
   "plugins": [
     {
       "name": "massive",
-      "description": "Massive financial data API plugin. Adds API knowledge, endpoint discovery, project scaffolding, and auto-configured MCP tools for equities, options, crypto, forex, indices, and futures.",
+      "description": "Massive financial data API plugin. Loads SDK knowledge into every session and adds five skills (scaffold, discover, debug, options, dashboard). Pairs with the Massive MCP server for live API access.",
       "source": "./"
     }
   ]

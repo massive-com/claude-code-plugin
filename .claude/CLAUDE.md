@@ -397,13 +397,15 @@ All projects follow the same pattern: dependency file, entry point, `.env.exampl
 
 ## MCP server workflow
 
-The Massive MCP server exposes three composable tools. Use them in this order:
+The Massive MCP server, when registered, exposes three composable tools. Use them in this order:
 
 1. `search_endpoints(query, scope)` - find relevant endpoints by natural language query; returns endpoint metadata including docs URLs. `scope`: `endpoints`, `functions`, or `all`. For full parameter specifications, fetch the authoritative catalog at `https://massive.com/docs/rest/llms-full.txt`.
 2. `call_api(endpoint, params, store_as, apply)` - call any REST endpoint; use `store_as` to save results as a DataFrame.
 3. `query_data(sql, apply)` - run SQL (SQLite) against stored DataFrames.
 
-**Troubleshooting the MCP server:** To run it manually outside Claude Code (useful for diagnosing startup failures), use the same command `.mcp.json` uses: `uvx --refresh --from git+https://github.com/massive-com/mcp_massive mcp_massive`. Requires `uv` installed and Python 3.12+. `--refresh` keeps the server tracking upstream on each launch; drop it if you want a cached version for faster / offline-capable starts.
+The MCP server is **not bundled with this plugin**. Users install it once globally (`uv tool install git+https://github.com/massive-com/mcp_massive`) and register it with Claude Code (`claude mcp add massive --scope user --env MASSIVE_API_KEY=... -- mcp_massive`). Skills that reference `mcp__massive__*` tools in their `allowed-tools` gracefully degrade when the MCP server isn't registered — they fall back to knowledge from this file.
+
+**Troubleshooting the MCP server:** To run it manually outside Claude Code, invoke the installed binary: `mcp_massive`. If the binary is missing, `uv tool install git+https://github.com/massive-com/mcp_massive` puts it on `$PATH`. Requires `uv` and Python 3.12+. Upgrade with `uv tool upgrade mcp-massive`.
 
 Built-in financial functions available via `apply` parameter on `call_api` and `query_data`: Black-Scholes (`bs_price`, `bs_delta`, `bs_gamma`, `bs_theta`, `bs_vega`, `bs_rho`), returns (`simple_return`, `log_return`, `cumulative_return`, `sharpe_ratio`, `sortino_ratio`), technicals (`sma`, `ema`).
 

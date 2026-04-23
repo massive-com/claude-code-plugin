@@ -15,6 +15,22 @@ Before starting, confirm the following:
 - [ ] A Massive API key (free Basic tier works for most tests; get one at [massive.com/dashboard](https://massive.com/dashboard))
 - [ ] Git clone of this repo
 
+### MCP server setup (required for §2, §4, §5 runtime tests)
+
+The plugin does not bundle an MCP server. Install and register it once before the live-API sections:
+
+```bash
+# Install the server binary globally via uv
+uv tool install git+https://github.com/massive-com/mcp_massive
+
+# Register it with Claude Code at user scope
+claude mcp add massive --scope user --env MASSIVE_API_KEY=your_key -- mcp_massive
+```
+
+- [ ] `which mcp_massive` returns a path under `~/.local/bin/`
+- [ ] `claude mcp list` shows `massive` with status `✓ Connected`
+- [ ] Skip this subsection if you only want to test §3 (API knowledge, no MCP)
+
 ## 1. Local plugin loading
 
 Verify the plugin loads correctly from a local directory.
@@ -28,29 +44,16 @@ claude --plugin-dir .
 - [ ] The five skills appear when you type `/massive:` (tab completion or listing)
 - [ ] `/reload-plugins` shows: 1 plugins, 5 skills, 0 errors
 
-## 2. MCP server startup
+## 2. MCP server availability
 
-The Massive MCP server should start automatically when the plugin loads.
+The Massive MCP server is registered at user scope (see Prerequisites), so it's available in every Claude Code session — no per-plugin wiring. If you skipped the MCP setup, the tools below won't exist and §4 tests won't apply.
 
 **Prompt:** `What MCP tools do you have available from Massive?`
 
 - [ ] Claude lists three tools: `search_endpoints`, `call_api`, `query_data`
-- [ ] No errors about the MCP server failing to start
+- [ ] No connection errors (`claude mcp list` shows `✓ Connected`)
 
-Note: When using `--plugin-dir` for local testing, `user_config.massive_api_key` is empty. Since `.mcp.json` uses `${user_config.massive_api_key}` interpolation, shell environment variables are NOT inherited — setting `MASSIVE_API_KEY` in your environment will not reach the MCP server through the plugin's config, and `call_api` / `query_data` will return 401. To test authenticated MCP tools while keeping the plugin's skills loaded, run both flags together: `claude --plugin-dir . --mcp-config /path/to/local.mcp.json` where `local.mcp.json` defines the same `massive` server WITHOUT an `env` block, then export `MASSIVE_API_KEY` in your shell. The `--mcp-config` override wins, and the subprocess inherits the env var from the parent. Example `local.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "massive": {
-      "command": "uvx",
-      "args": ["--refresh", "--from", "git+https://github.com/massive-com/mcp_massive", "mcp_massive"]
-    }
-  }
-}
-```
-
-Alternatively, install via the marketplace (`claude plugin marketplace add ...`) to trigger the real user_config key prompt.
+If the tools are missing: run `claude mcp list`. If `massive` is absent, go back to Prerequisites and run the `claude mcp add` command. If it's listed but shows an error, try `mcp_massive` in a terminal to smoke-test the binary — it should start and wait for stdin.
 
 ## 3. API knowledge (no tools needed)
 
