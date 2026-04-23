@@ -138,12 +138,11 @@ All skills support Python, JavaScript/TypeScript, Go, and Kotlin. Massive provid
 | Go | `github.com/massive-com/client-go/v3` | v3.2.0 (Go 1.21+) | [massive-com/client-go](https://github.com/massive-com/client-go) |
 | Kotlin/JVM | JitPack `com.github.massive-com:client-jvm` | v5.1.2 (JDK 21+, Android SDK 21+) | [massive-com/client-jvm](https://github.com/massive-com/client-jvm) |
 
-## Cross-tool support
+## Other AI coding assistants
 
-For developers using other AI coding assistants, equivalent API convention files are included:
+Using a different AI tool? The [**massive-ai-rules**](https://github.com/massive-com/massive-ai-rules) repo has equivalent instruction files for Cursor, GitHub Copilot, Gemini CLI, Windsurf, and more, plus setup guides for Perplexity Spaces and ChatGPT Projects.
 
-- **Cursor:** Copy `cross-tool/.cursorrules` to `.cursor/rules/massive.mdc` in your project.
-- **GitHub Copilot:** Copy `cross-tool/copilot-instructions.md` to `.github/copilot-instructions.md` in your project.
+For OpenAI Codex users, see the [**Massive Codex plugin**](https://github.com/massive-com/codex-plugin).
 
 ## Documentation
 
