@@ -3,8 +3,9 @@
     "massive": {
       "command": "uvx",
       "args": [
+        "--refresh",
         "--from",
-        "git+https://github.com/massive-com/mcp_massive@v0.9.0",
+        "git+https://github.com/massive-com/mcp_massive",
         "mcp_massive"
       ],
       "env": {

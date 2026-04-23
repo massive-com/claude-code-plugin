@@ -403,7 +403,7 @@ The Massive MCP server exposes three composable tools. Use them in this order:
 2. `call_api(endpoint, params, store_as, apply)` - call any REST endpoint; use `store_as` to save results as a DataFrame.
 3. `query_data(sql, apply)` - run SQL (SQLite) against stored DataFrames.
 
-**Troubleshooting the MCP server:** To run it manually outside Claude Code (useful for diagnosing startup failures), use the same command `.mcp.json` uses: `uvx --from git+https://github.com/massive-com/mcp_massive@v0.9.0 mcp_massive`. Requires `uv` installed and Python 3.12+.
+**Troubleshooting the MCP server:** To run it manually outside Claude Code (useful for diagnosing startup failures), use the same command `.mcp.json` uses: `uvx --refresh --from git+https://github.com/massive-com/mcp_massive mcp_massive`. Requires `uv` installed and Python 3.12+. `--refresh` keeps the server tracking upstream on each launch; drop it if you want a cached version for faster / offline-capable starts.
 
 Built-in financial functions available via `apply` parameter on `call_api` and `query_data`: Black-Scholes (`bs_price`, `bs_delta`, `bs_gamma`, `bs_theta`, `bs_vega`, `bs_rho`), returns (`simple_return`, `log_return`, `cumulative_return`, `sharpe_ratio`, `sortino_ratio`), technicals (`sma`, `ema`).
 

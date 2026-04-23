@@ -16,13 +16,13 @@ skills/                        - 5 interactive skills (slash commands)
   debug/SKILL.md               - /massive:debug - diagnose API errors
   options/SKILL.md             - /massive:options - build options strategies
   dashboard/SKILL.md           - /massive:dashboard - scaffold Streamlit dashboards
-.mcp.json                      - Auto-configures the Massive MCP server (v0.9.0)
+.mcp.json                      - Auto-configures the Massive MCP server (tracks latest upstream via uvx --refresh)
 README.md                      - Installation and usage docs
 ```
 
 ## Key dependencies
 
-- MCP server: `massive-com/mcp_massive` (v0.9.0, spawned via uvx, requires Python 3.12+)
+- MCP server: `massive-com/mcp_massive` (spawned via `uvx --refresh` from git HEAD, requires Python 3.12+)
 - Python SDK: `massive` on PyPI (v2.5.0, Python 3.9+)
 - Also: JS/TS (`@massive.com/client-js`), Go (`client-go`), Kotlin/JVM (`client-jvm`)
 - MCP server indexes endpoints from `massive.com/docs/rest/llms-full.txt`

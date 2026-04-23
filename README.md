@@ -39,7 +39,7 @@ Loaded every session. Covers:
 
 ### Live API via MCP
 
-The [Massive MCP server](https://github.com/massive-com/mcp_massive) (v0.9.0) starts automatically when the plugin loads. Three tools:
+The [Massive MCP server](https://github.com/massive-com/mcp_massive) starts automatically when the plugin loads and auto-updates to the latest upstream on every session (via `uvx --refresh`). Three tools:
 
 - `search_endpoints(query)`: find endpoints by natural-language description.
 - `call_api(endpoint, params, store_as)`: call a REST endpoint and optionally save the response as a DataFrame.
@@ -47,35 +47,70 @@ The [Massive MCP server](https://github.com/massive-com/mcp_massive) (v0.9.0) st
 
 Reach for these when you need to see what an endpoint actually returns before writing code against it, or when something in your code isn't returning what you expected. REST endpoints are polled. Real-time streaming lives on the WebSocket feeds, not in these tools.
 
-## Example session
+## Getting started
 
-```
-You:    /massive:scaffold earnings-tracker rest python
-Claude: [creates project: pyproject.toml, .env.example, main.py, README]
+### 1. Prereqs
 
-You:    Show me AAPL's last 30 days of daily bars and calculate the Sharpe ratio.
-Claude: [hits MCP call_api, stores as DataFrame, runs sharpe_ratio, prints number]
+- [Claude Code](https://claude.ai/code) CLI. Check with `claude --version`.
+- [uv](https://docs.astral.sh/uv/), for the Massive MCP server. Check with `uvx --version`. Install with `curl -LsSf https://astral.sh/uv/install.sh | sh` (macOS or Linux) or `pip install uv`.
+- A Massive API key from [massive.com/dashboard](https://massive.com/dashboard). The free Basic tier is enough to start (end-of-day data, 5 calls/min).
 
-You:    Now build the same thing in Node.js.
-Claude: [scaffolds a JS project with getStocksAggregates() and the right object-params syntax]
-```
+For scaffolding in languages other than Python, you'll also need Node.js 16+, Go 1.21+, or JDK 21+ with Gradle, depending on the language you pick. The plugin itself doesn't require these; they only matter when `/massive:scaffold` creates a project in that language and you want to run it.
 
-## Install
-
-Get an API key at [massive.com/dashboard](https://massive.com/dashboard). The free Basic tier is enough for most exploration (end-of-day data, reference data, technical indicators; 5 calls/min).
+### 2. Install the plugin
 
 ```bash
 claude plugin marketplace add massive-com/claude-code-plugin
 claude plugin install massive@massive-com-claude-code-plugin
 ```
 
-Paste your API key when prompted; it goes into your system keychain, not a file.
+Paste your API key when prompted. It goes into your system keychain, not a file on disk.
 
-The plugin loads in every Claude Code session after that. No per-project setup.
+After that, the plugin loads in every Claude Code session on this machine. No per-project setup.
 
-### Local development
+### 3. Verify it works
 
-If you're working on this plugin, or want to try it before installing:
+Open Claude Code in any directory and check three things:
+
+1. Run `/reload-plugins`. Expect `1 plugins · 5 skills · 0 errors`.
+2. Ask: `What MCP tools do you have from Massive?` Should list `search_endpoints`, `call_api`, `query_data`.
+3. Ask: `Call the Massive API for AAPL's last trade.` Should return a live price.
+
+If any step fails, jump to [Troubleshooting](#troubleshooting).
+
+### 4. Try it out
+
+Point Claude at a directory (new or existing) and scaffold your first project:
+
+```
+/massive:scaffold earnings-tracker rest python
+```
+
+That creates a working Python project. Then:
+
+```bash
+cd earnings-tracker
+cp .env.example .env     # add your Massive API key
+uv sync
+uv run python main.py    # prints real AAPL daily bars
+```
+
+From there, ask natural questions and Claude will reach for the right skill or MCP tool as needed:
+
+```
+You:    Show me AAPL's last 30 days and calculate the Sharpe ratio.
+Claude: [uses call_api via MCP, stores the result, runs sharpe_ratio, prints a number]
+
+You:    Now build the same thing in Node.js.
+Claude: /massive:scaffold earnings-tracker-js rest javascript
+        [scaffolds a JS project with getStocksAggregates() and the right object-params syntax]
+```
+
+Common follow-on moves: `/massive:discover "options Greeks for SPY"` to find an endpoint, `/massive:debug` when something errors, `/massive:options "iron condor" SPY python` or `/massive:dashboard my-dash multi-asset` to scaffold more specialized projects.
+
+## Local development
+
+If you're working on this plugin itself, or want to try it before installing from the marketplace:
 
 ```bash
 claude --plugin-dir .
@@ -90,7 +125,7 @@ Run `/reload-plugins` after changes. Expect `1 plugins · 5 skills · 0 errors`.
   "mcpServers": {
     "massive": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/massive-com/mcp_massive@v0.9.0", "mcp_massive"]
+      "args": ["--refresh", "--from", "git+https://github.com/massive-com/mcp_massive", "mcp_massive"]
     }
   }
 }
@@ -101,16 +136,6 @@ export MASSIVE_API_KEY=your_key
 claude --plugin-dir . --mcp-config /path/to/local.mcp.json
 ```
 
-## Verify your setup
-
-After install, open Claude Code in any directory and check three things:
-
-1. Run `/reload-plugins`. Expect `1 plugins · 5 skills · 0 errors`.
-2. Ask: `What MCP tools do you have from Massive?` Should list `search_endpoints`, `call_api`, `query_data`.
-3. Ask: `Call the Massive API for AAPL's last trade.` Should return a live price.
-
-If any step fails, see Troubleshooting.
-
 ## Troubleshooting
 
 ### MCP server won't start
@@ -119,9 +144,10 @@ The MCP server is spawned via [`uvx`](https://docs.astral.sh/uv/guides/tools/) a
 
 - `uvx: command not found`: install `uv`. macOS or Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`. Otherwise: `pip install uv`.
 - Python too old: `uvx` will download 3.12 on first run if you have network access. Offline, install it yourself.
-- First launch is slow (5 to 10 seconds) because uvx is downloading the server package. Subsequent starts are instant.
+- Every launch takes 5 to 10 seconds because `--refresh` forces uvx to re-check the upstream git repo so the server stays current. Remove `--refresh` from `.mcp.json` if you'd rather cache indefinitely (you'll then need `uv cache clean` to force an update).
 - MCP tools still not visible: restart Claude Code. If it still fails, run with `claude --debug` and look for `mcp_massive` in the log.
-- Manual smoke test, outside Claude Code: `uvx --from git+https://github.com/massive-com/mcp_massive@v0.9.0 mcp_massive` should spin up a running process.
+- Manual smoke test, outside Claude Code: `uvx --refresh --from git+https://github.com/massive-com/mcp_massive mcp_massive` should spin up a running process.
+- Offline: `--refresh` needs network. If you're offline, drop it temporarily from `.mcp.json` or pin to a cached tag (`@v0.9.1`).
 
 ### Plugin didn't load
 
@@ -155,15 +181,6 @@ Pricing is per asset class (stocks, options, indices, currencies, futures). Ever
 Individual tiers are for personal, non-commercial use. Building a product, redistributing data, or embedding this in a SaaS puts you in Business territory.
 
 Add-ons are $99/mo each on individual tiers: Benzinga (news, ratings, earnings), ETF Global (constituents, flows), TMX (corporate events). Annual billing saves 20%. Full breakdown at [massive.com/pricing](https://massive.com/pricing).
-
-## Requirements
-
-- [Claude Code](https://claude.ai/code) CLI
-- [uv](https://docs.astral.sh/uv/), for the MCP server
-- Python 3.12+ for the MCP server (the Python SDK itself supports 3.9+)
-- A Massive API key
-
-For non-Python scaffolding: Node.js 16+, Go 1.21+, or JDK 21+ with Gradle.
 
 ## Official SDKs
 

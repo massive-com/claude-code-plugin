@@ -44,7 +44,7 @@ Note: When using `--plugin-dir` for local testing, `user_config.massive_api_key`
   "mcpServers": {
     "massive": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/massive-com/mcp_massive@v0.9.0", "mcp_massive"]
+      "args": ["--refresh", "--from", "git+https://github.com/massive-com/mcp_massive", "mcp_massive"]
     }
   }
 }
