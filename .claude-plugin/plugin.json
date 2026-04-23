@@ -1,6 +1,6 @@
 {
   "name": "massive",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Massive financial data API plugin. Adds API knowledge, endpoint discovery, project scaffolding, and auto-configured MCP tools for building with Massive's REST and WebSocket APIs across equities, options, crypto, forex, indices, and futures.",
   "author": {
     "name": "Massive",
@@ -28,7 +28,8 @@
       "title": "Massive API Key",
       "description": "Your Massive API key from massive.com/dashboard",
       "type": "string",
-      "sensitive": true
+      "sensitive": true,
+      "required": true
     }
   }
 }
