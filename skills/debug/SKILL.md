@@ -3,7 +3,7 @@ name: debug
 description: Debug Massive API errors, unexpected responses, or SDK issues. Use when API calls return errors, data looks wrong, pagination isn't working, or the SDK behaves unexpectedly.
 argument-hint: "[paste error message or describe the issue]"
 disable-model-invocation: false
-allowed-tools: Read Grep mcp__massive__search_endpoints mcp__massive__get_endpoint_docs Bash
+allowed-tools: Read Grep mcp__massive__search_endpoints Bash WebFetch
 ---
 
 # Debug Massive API issue
@@ -279,5 +279,5 @@ val result = withBackoff { client.getAggregatesBlocking(params) }
 
 1. Read the user's code and identify the failing call and language.
 2. Match the error to a pattern above for that language.
-3. If the error doesn't match a known pattern, use `search_endpoints` and `get_endpoint_docs` to verify the endpoint exists and check required parameters.
+3. If the error doesn't match a known pattern, use `search_endpoints` to verify the endpoint exists. For full parameter specifications, fetch `https://massive.com/docs/rest/llms-full.txt`.
 4. Suggest a specific fix with corrected code in the same language.

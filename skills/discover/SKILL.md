@@ -2,7 +2,7 @@
 name: discover
 description: Find the right Massive API endpoint for a financial data task. Use when the user needs to find which endpoint returns specific market data, or when exploring what data is available for a given asset class or use case.
 argument-hint: "[description of data needed]"
-allowed-tools: mcp__massive__search_endpoints mcp__massive__get_endpoint_docs Read
+allowed-tools: mcp__massive__search_endpoints Read WebFetch
 ---
 
 # Find the right Massive endpoint
@@ -13,7 +13,7 @@ The user needs: $ARGUMENTS
 
 1. Use `search_endpoints` to find candidate endpoints matching the user's description. Try multiple search terms if the first query returns few results. For example, if "options Greeks" returns little, also try "options chain snapshot."
 
-2. For the top 2-3 matches, use `get_endpoint_docs` to pull full parameter documentation.
+2. For the top 2-3 matches, review the endpoint metadata returned by `search_endpoints` (includes docs URLs and descriptions). If the metadata is insufficient, fetch the authoritative parameter catalog from `https://massive.com/docs/rest/llms-full.txt`.
 
 3. **Detect the user's language** from context (open files, project type, or explicit mention). Default to Python if unclear.
 

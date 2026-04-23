@@ -189,9 +189,12 @@ module $0
 
 go 1.21
 
-require github.com/massive-com/client-go/v3 latest
+require (
+    github.com/massive-com/client-go/v3 v3.2.0
+    github.com/joho/godotenv v1.5.1
+)
 ```
-Also add `github.com/joho/godotenv` for .env loading.
+Run `go mod tidy` after scaffolding to populate `go.sum`.
 
 Entry point: `main.go`
 

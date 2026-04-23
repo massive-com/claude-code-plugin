@@ -178,6 +178,8 @@ c := rest.New("your_key")  // or pass explicitly
 
 **Pointer helpers:** Use `rest.Ptr(value)` for optional params. Example: `rest.Ptr(true)`, `rest.Ptr(200)`, `rest.Ptr("asc")`.
 
+**Bar fields** are single-letter capitalized: `bar.O` (open), `bar.H` (high), `bar.L` (low), `bar.C` (close), `bar.V` (volume). **NOT** `bar.Open` / `bar.High` / etc. — that is the Kotlin convention, not Go. The Go SDK's generated types use the single-letter fields from the JSON response.
+
 **Timestamps:** Aggregates `Timestamp` field is Unix milliseconds (`int`). Convert with `time.UnixMilli(int64(bar.Timestamp))`. Trades use nanoseconds.
 
 **Pagination:** Auto-pagination is on by default. Disable with `rest.NewWithOptions("", rest.WithPagination(false))`.
@@ -374,7 +376,7 @@ Save 20% with annual billing. Futures individual plans (except Basic) are "Comin
 - Options filtering by `expiration_date` requires ISO format (`YYYY-MM-DD`).
 - Individual tickers (e.g., Bitcoin, AAPL) are not "markets." Markets are asset classes (equities, crypto, forex, etc.).
 - Flat files have a ~1 day publication delay. Files for yesterday may not be available yet.
-- Free tier (Basic) is limited to 5 API calls/minute and end-of-day data only. Use TTL-based caching to avoid unnecessary calls.
+- Free tier (Basic) is limited to 5 API calls/minute and end-of-day data only. Use TTL-based caching to avoid unnecessary calls. For 429 retries in Python, match `str(e).lower()` against `"maximum requests"` / `"rate limit"` / `"too many requests"` body-text markers (the SDK's `BadResponse` does NOT preserve HTTP status), then apply exponential backoff. See `/massive:debug` for the full `with_backoff` helper in Python, JS, Go, and Kotlin.
 - The SDK `limit` parameter controls page size (max 50,000 for aggregates), not total results. The client auto-paginates by default.
 - WebSockets, flat files, and snapshots require Starter plan or above.
 - Trades require Developer plan or above. Quotes require Advanced or above.
@@ -395,12 +397,13 @@ All projects follow the same pattern: dependency file, entry point, `.env.exampl
 
 ## MCP server workflow
 
-The Massive MCP server exposes four composable tools. Use them in this order:
+The Massive MCP server exposes three composable tools. Use them in this order:
 
-1. `search_endpoints(query, scope)` - find relevant endpoints by natural language query. `scope`: `endpoints`, `functions`, or `all`.
-2. `get_endpoint_docs(docs_url)` - get full parameter docs for a specific endpoint (use the `docs_url` from search results).
-3. `call_api(endpoint, params, store_as, apply)` - call any REST endpoint; use `store_as` to save results as a DataFrame.
-4. `query_data(sql, apply)` - run SQL (SQLite) against stored DataFrames.
+1. `search_endpoints(query, scope)` - find relevant endpoints by natural language query; returns endpoint metadata including docs URLs. `scope`: `endpoints`, `functions`, or `all`. For full parameter specifications, fetch the authoritative catalog at `https://massive.com/docs/rest/llms-full.txt`.
+2. `call_api(endpoint, params, store_as, apply)` - call any REST endpoint; use `store_as` to save results as a DataFrame.
+3. `query_data(sql, apply)` - run SQL (SQLite) against stored DataFrames.
+
+**Troubleshooting the MCP server:** To run it manually outside Claude Code (useful for diagnosing startup failures), use the same command `.mcp.json` uses: `uvx --from git+https://github.com/massive-com/mcp_massive@v0.9.0 mcp_massive`. Requires `uv` installed and Python 3.12+.
 
 Built-in financial functions available via `apply` parameter on `call_api` and `query_data`: Black-Scholes (`bs_price`, `bs_delta`, `bs_gamma`, `bs_theta`, `bs_vega`, `bs_rho`), returns (`simple_return`, `log_return`, `cumulative_return`, `sharpe_ratio`, `sortino_ratio`), technicals (`sma`, `ema`).
 

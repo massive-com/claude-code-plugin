@@ -34,10 +34,10 @@ The Massive MCP server should start automatically when the plugin loads.
 
 **Prompt:** `What MCP tools do you have available from Massive?`
 
-- [ ] Claude lists four tools: `search_endpoints`, `get_endpoint_docs`, `call_api`, `query_data`
+- [ ] Claude lists three tools: `search_endpoints`, `call_api`, `query_data`
 - [ ] No errors about the MCP server failing to start
 
-Note: When using `--plugin-dir` for local testing, the `user_config.massive_api_key` is not set. MCP tools that require authentication (`call_api`, `query_data`) will return 401 errors. To test those, set `MASSIVE_API_KEY` in your environment before starting Claude Code.
+Note: When using `--plugin-dir` for local testing, `user_config.massive_api_key` is empty. Since `.mcp.json` uses `${user_config.massive_api_key}` interpolation, shell environment variables are NOT inherited — setting `MASSIVE_API_KEY` in your environment will not reach the MCP server, and `call_api` / `query_data` will return 401. To test authenticated tools locally, either install via the marketplace (`claude plugin marketplace add ...`) to trigger the key prompt, or pass a local override with `--mcp-config /path/to/local.mcp.json` that reads the key directly from env.
 
 ## 3. API knowledge (no tools needed)
 
@@ -142,14 +142,7 @@ These tests require a valid API key with at least Basic tier access.
 - [ ] Claude calls `search_endpoints` with a relevant query
 - [ ] Results include the custom bars endpoint (`/v2/aggs/ticker/{stocksTicker}/range/...`)
 
-### 4b. Endpoint documentation
-
-**Prompt:** `Get me the full documentation for the stock aggregates custom bars endpoint`
-
-- [ ] Claude calls `get_endpoint_docs` with the docs URL from search results
-- [ ] Response includes parameter descriptions (ticker, multiplier, timespan, from, to, adjusted, sort, limit)
-
-### 4c. API call
+### 4b. API call
 
 **Prompt:** `Call the API to get AAPL's last 5 daily bars and store the results`
 
@@ -157,7 +150,7 @@ These tests require a valid API key with at least Basic tier access.
 - [ ] Claude uses `store_as` to save results as a DataFrame
 - [ ] Results contain OHLCV data for AAPL
 
-### 4d. SQL query
+### 4c. SQL query
 
 **Prompt:** `Query the stored data to show me the day with the highest volume`
 
@@ -414,9 +407,8 @@ Review all Claude responses from the tests above and verify:
 | 3h. Plan tiers | | |
 | 3i. Gotchas | | |
 | 4a. Endpoint search | | |
-| 4b. Endpoint docs | | |
-| 4c. API call | | |
-| 4d. SQL query | | |
+| 4b. API call | | |
+| 4c. SQL query | | |
 | 5a. Scaffold Python REST | | |
 | 5b. Scaffold JS REST | | |
 | 5c. Scaffold Go REST | | |

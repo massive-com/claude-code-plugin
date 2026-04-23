@@ -64,7 +64,7 @@ To reload after changes without restarting, run `/reload-plugins` inside Claude 
 Open Claude Code in any directory, then confirm three things:
 
 1. **Plugin loaded.** Run `/reload-plugins` and check for `1 plugins, 5 skills, 0 errors`.
-2. **MCP server running.** Ask: `What MCP tools do you have from Massive?` Claude should list `search_endpoints`, `get_endpoint_docs`, `call_api`, `query_data`.
+2. **MCP server running.** Ask: `What MCP tools do you have from Massive?` Claude should list `search_endpoints`, `call_api`, `query_data`.
 3. **API key working.** Ask: `Call the Massive API for AAPL's last trade.` You should get a live price back.
 
 If any step fails, see the [Troubleshooting](#troubleshooting) section below.

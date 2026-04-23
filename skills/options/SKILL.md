@@ -2,7 +2,7 @@
 name: options
 description: Build and analyze options strategies using Massive's options data. Supports covered calls, iron condors, spreads, and custom strategies. Use when building options screeners, analyzing Greeks, or constructing multi-leg strategies.
 argument-hint: "[strategy] [underlying ticker] [language: python|javascript|typescript|go|kotlin]"
-allowed-tools: mcp__massive__search_endpoints mcp__massive__get_endpoint_docs mcp__massive__call_api mcp__massive__query_data Write Edit Bash Read
+allowed-tools: mcp__massive__search_endpoints mcp__massive__call_api mcp__massive__query_data Write Edit Bash Read
 ---
 
 # Build an options strategy
