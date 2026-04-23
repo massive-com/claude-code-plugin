@@ -17,9 +17,6 @@ skills/                        - 5 interactive skills (slash commands)
   options/SKILL.md             - /massive:options - build options strategies
   dashboard/SKILL.md           - /massive:dashboard - scaffold Streamlit dashboards
 .mcp.json                      - Auto-configures the Massive MCP server (v0.9.0)
-cross-tool/
-  .cursorrules                 - Cursor AI rules
-  copilot-instructions.md      - GitHub Copilot instructions
 README.md                      - Installation and usage docs
 ```
 

@@ -331,18 +331,7 @@ Clean up test directories after each test.
 
 ## 6. Cross-tool files
 
-### 6a. Cursor
-
-- [ ] `cross-tool/.cursorrules` contains `get_*` vs `list_*` distinction
-- [ ] Contains `SingleIndicatorResults` note for technical indicators
-- [ ] Contains JS/Go/Kotlin method name mappings in "Other SDKs" section
-- [ ] Uses `ticker_any_of` parameter (not `tickers`)
-- [ ] JS methods show object param pattern (`{stocksTicker, ...}`)
-- [ ] Kotlin shows `PolygonRestClient`, `getAggregatesBlocking`, full bar field names
-
-### 6b. GitHub Copilot
-
-- [ ] `cross-tool/copilot-instructions.md` matches `.cursorrules` content
+Cross-tool instruction files (Cursor, Copilot, Gemini, Windsurf, and others) have been moved to the standalone [massive-ai-rules](https://github.com/massive-com/massive-ai-rules) repo. Test them there.
 
 ## 7. Brand and terminology
 
@@ -437,8 +426,6 @@ Review all Claude responses from the tests above and verify:
 | 5g. Debug (multi-lang) | | |
 | 5h. Options (multi-lang) | | |
 | 5i. Dashboard (all focus) | | |
-| 6a. Cursor rules | | |
-| 6b. Copilot instructions | | |
 | 7. Brand/terminology | | |
 | 8a. No API key | | |
 | 8b. Mixed-asset snapshot | | |
