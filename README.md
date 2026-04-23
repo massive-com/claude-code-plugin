@@ -61,7 +61,7 @@ For scaffolding in languages other than Python, you'll also need Node.js 16+, Go
 
 ```bash
 claude plugin marketplace add massive-com/claude-code-plugin
-claude plugin install massive@massive-com-claude-code-plugin
+claude plugin install massive@massive-claude-code-plugin
 ```
 
 Paste your API key when prompted. It goes into your system keychain, not a file on disk.
@@ -157,7 +157,7 @@ The MCP server is spawned via [`uvx`](https://docs.astral.sh/uv/guides/tools/) a
 
 ### 401 Unauthorized
 
-- **Installed via marketplace.** The key lives in your system keychain. Reinstall to re-prompt: `claude plugin uninstall massive@massive-com-claude-code-plugin && claude plugin install massive@massive-com-claude-code-plugin`.
+- **Installed via marketplace.** The key lives in your system keychain. Reinstall to re-prompt: `claude plugin uninstall massive@massive-claude-code-plugin && claude plugin install massive@massive-claude-code-plugin`.
 - **Local mode with `--plugin-dir`.** See "Local testing gotcha" above; the plugin's `.mcp.json` uses user_config interpolation that won't pick up a shell env var.
 - **Key rotated or revoked.** Regenerate at [massive.com/dashboard](https://massive.com/dashboard) and reinstall.
 

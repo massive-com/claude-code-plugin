@@ -31,7 +31,7 @@ README.md                      - Installation and usage docs
 
 ```bash
 claude plugin marketplace add massive-com/claude-code-plugin
-claude plugin install massive@massive-com-claude-code-plugin
+claude plugin install massive@massive-claude-code-plugin
 ```
 
 ## Local testing
