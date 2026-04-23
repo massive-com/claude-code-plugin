@@ -37,7 +37,20 @@ The Massive MCP server should start automatically when the plugin loads.
 - [ ] Claude lists three tools: `search_endpoints`, `call_api`, `query_data`
 - [ ] No errors about the MCP server failing to start
 
-Note: When using `--plugin-dir` for local testing, `user_config.massive_api_key` is empty. Since `.mcp.json` uses `${user_config.massive_api_key}` interpolation, shell environment variables are NOT inherited — setting `MASSIVE_API_KEY` in your environment will not reach the MCP server, and `call_api` / `query_data` will return 401. To test authenticated tools locally, either install via the marketplace (`claude plugin marketplace add ...`) to trigger the key prompt, or pass a local override with `--mcp-config /path/to/local.mcp.json` that reads the key directly from env.
+Note: When using `--plugin-dir` for local testing, `user_config.massive_api_key` is empty. Since `.mcp.json` uses `${user_config.massive_api_key}` interpolation, shell environment variables are NOT inherited — setting `MASSIVE_API_KEY` in your environment will not reach the MCP server through the plugin's config, and `call_api` / `query_data` will return 401. To test authenticated MCP tools while keeping the plugin's skills loaded, run both flags together: `claude --plugin-dir . --mcp-config /path/to/local.mcp.json` where `local.mcp.json` defines the same `massive` server WITHOUT an `env` block, then export `MASSIVE_API_KEY` in your shell. The `--mcp-config` override wins, and the subprocess inherits the env var from the parent. Example `local.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "massive": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/massive-com/mcp_massive@v0.9.0", "mcp_massive"]
+    }
+  }
+}
+```
+
+Alternatively, install via the marketplace (`claude plugin marketplace add ...`) to trigger the real user_config key prompt.
 
 ## 3. API knowledge (no tools needed)
 
