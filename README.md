@@ -2,169 +2,202 @@
 
 # Massive Claude Code Plugin
 
-Build financial applications faster with [Massive](https://massive.com) market data and [Claude Code](https://claude.ai/code). This plugin gives Claude direct knowledge of the Massive API and live access to market data across equities, options, crypto, forex, indices, and futures.
+Ship code against the [Massive](https://massive.com) API faster, with fewer hallucinations. This plugin loads Massive's SDK conventions, endpoint catalog, and common failure modes into every Claude Code session, plus five slash commands for the workflows you run most often.
 
-## What this does
+## Why
 
-When you install this plugin, every Claude Code session automatically gets:
+Two problems Claude runs into when you're coding against a real financial data API.
 
-**API knowledge.** Claude knows Massive's ticker formats, SDK patterns, pagination behavior, plan tiers, and common pitfalls. You do not need to explain how the API works.
+**Slow.** Every session starts with you explaining that Bitcoin is `X:BTCUSD`, that `list_aggs` auto-paginates, that `get_rsi` returns a single object not an iterator, that crypto endpoints use a different prefix from forex. Minutes burned before any code lands.
 
-**Live API access.** The [Massive MCP server](https://github.com/massive-com/mcp_massive) starts automatically. Claude can search 200+ endpoints, read their documentation, call the API with your key, store results as DataFrames, and run SQL against them.
+**Wrong.** Claude is confident. It will write `list_rsi(...)` when the method is `get_rsi`, pass `tickerAnyOf` as an array in JS when the SDK wants a comma-separated string, or reach for `bar.Open` in Go when the actual field is `bar.O`. You end up debugging hallucinations instead of business logic.
 
-**Interactive skills.** Five slash commands for common workflows:
+This plugin fixes both. `CLAUDE.md` teaches the model the right patterns so correct code comes out the first try; the skills wrap the workflows you run most; the MCP server gives Claude a way to inspect real data when you need to validate a response shape or debug a 401.
+
+## What ships
+
+### API knowledge in `.claude/CLAUDE.md`
+
+Loaded every session. Covers:
+
+- Ticker prefixes across six asset classes (equities, options, crypto, forex, indices, futures)
+- SDK method name maps for Python, JavaScript, Go, and Kotlin (same operations, different names in each)
+- Pagination behavior: `list_*` auto-paginates, `get_*` returns single objects, `limit` is page size not total results
+- Plan tier gates, so Claude doesn't recommend quotes on Basic or Greeks without Options Starter
+- Common 401 / 429 / empty-result debugging patterns
+- Rate-limit retry helpers, including the non-obvious detail that the Python SDK's `BadResponse` body matches on text (`"maximum requests"`, `"rate limit"`) instead of HTTP status
+
+### Five skills
 
 | Command | What it does |
 |---|---|
-| `/massive:scaffold my-app rest python` | Create a new project with dependencies, .env, and working boilerplate. Supports Python, JavaScript/TypeScript, Go, and Kotlin. |
-| `/massive:discover "options Greeks for SPY"` | Find the right API endpoint and show SDK usage in your language |
-| `/massive:debug` | Diagnose API errors, empty results, or SDK issues across all languages |
-| `/massive:options "iron condor" SPY python` | Build an options strategy as a runnable project with risk/reward analysis |
-| `/massive:dashboard my-dash multi-asset` | Scaffold a Streamlit financial dashboard with modular architecture |
+| `/massive:scaffold my-app rest python` | New project with dependencies, `.env`, and working boilerplate. Python, JS/TS, Go, or Kotlin. Checks plan tier before scaffolding WebSocket or Streamlit projects that need Starter. |
+| `/massive:discover "options Greeks for SPY"` | Finds the right endpoint and shows SDK usage in your language. |
+| `/massive:debug` | Diagnoses API errors, empty results, and SDK quirks across all four languages. Covers the Python `BadResponse` rate-limit pattern, Go nil-pointer guards, JS object-param shape, Kotlin JitPack deps. |
+| `/massive:options "iron condor" SPY python` | Builds a runnable options strategy as a project. Screens the chain, calculates max profit / max loss / breakeven, ranks by risk-reward. Expiration dates are derived from today, not hardcoded. |
+| `/massive:dashboard my-dash multi-asset` | Modular Streamlit dashboard with a cached data layer and Plotly charts. Four focus areas: multi-asset, options, crypto, macro. |
 
-## Example workflow
+### Live API via MCP
+
+The [Massive MCP server](https://github.com/massive-com/mcp_massive) (v0.9.0) starts automatically when the plugin loads. Three tools:
+
+- `search_endpoints(query)`: find endpoints by natural-language description.
+- `call_api(endpoint, params, store_as)`: call a REST endpoint and optionally save the response as a DataFrame.
+- `query_data(sql)`: run SQL against stored DataFrames, with built-in financial functions (Black-Scholes, Sharpe, returns, SMA, EMA).
+
+Reach for these when you need to see what an endpoint actually returns before writing code against it, or when something in your code isn't returning what you expected. REST endpoints are polled. Real-time streaming lives on the WebSocket feeds, not in these tools.
+
+## Example session
 
 ```
 You:    /massive:scaffold earnings-tracker rest python
-Claude: [creates project directory with pyproject.toml, .env.example, main.py, README]
+Claude: [creates project: pyproject.toml, .env.example, main.py, README]
 
-You:    Show me AAPL's last 30 days of daily bars and calculate the Sharpe ratio
-Claude: [calls the API via MCP, stores results, runs sharpe_ratio calculation, shows output]
+You:    Show me AAPL's last 30 days of daily bars and calculate the Sharpe ratio.
+Claude: [hits MCP call_api, stores as DataFrame, runs sharpe_ratio, prints number]
 
-You:    Now build the same thing in Node.js
-Claude: /massive:scaffold earnings-tracker-js rest javascript
-        [creates package.json, index.js with getStocksAggregates({...}), .env.example]
+You:    Now build the same thing in Node.js.
+Claude: [scaffolds a JS project with getStocksAggregates() and the right object-params syntax]
 ```
 
-## Installation
+## Install
 
-**1. Get an API key** at [massive.com/dashboard](https://massive.com/dashboard). A free Basic plan works for testing (5 calls/min, end-of-day data, 2yr history).
+Get an API key at [massive.com/dashboard](https://massive.com/dashboard). The free Basic tier is enough for most exploration (end-of-day data, reference data, technical indicators; 5 calls/min).
 
-**2. Install the plugin:**
 ```bash
 claude plugin marketplace add massive-com/claude-code-plugin
 claude plugin install massive@massive-com-claude-code-plugin
 ```
 
-You will be prompted for your API key (stored in your system keychain).
+Paste your API key when prompted; it goes into your system keychain, not a file.
 
-**3. Start building.** Open Claude Code in any directory. The plugin loads automatically.
+The plugin loads in every Claude Code session after that. No per-project setup.
 
 ### Local development
 
-To test the plugin from a local clone of this repo:
+If you're working on this plugin, or want to try it before installing:
+
 ```bash
 claude --plugin-dir .
 ```
 
-To reload after changes without restarting, run `/reload-plugins` inside Claude Code.
+Run `/reload-plugins` after changes. Expect `1 plugins · 5 skills · 0 errors`.
 
-### Verify your setup
+**Local testing gotcha.** `--plugin-dir` doesn't populate `user_config.massive_api_key`, so the MCP server receives an empty string from the `${user_config.massive_api_key}` interpolation in `.mcp.json`. `call_api` and `query_data` will return 401. To exercise authenticated MCP tools locally, keep `--plugin-dir .` for the skills and add `--mcp-config` pointing at an override that omits the `env` block, so the MCP subprocess inherits `MASSIVE_API_KEY` from your shell:
 
-Open Claude Code in any directory, then confirm three things:
+```json
+{
+  "mcpServers": {
+    "massive": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/massive-com/mcp_massive@v0.9.0", "mcp_massive"]
+    }
+  }
+}
+```
 
-1. **Plugin loaded.** Run `/reload-plugins` and check for `1 plugins, 5 skills, 0 errors`.
-2. **MCP server running.** Ask: `What MCP tools do you have from Massive?` Claude should list `search_endpoints`, `call_api`, `query_data`.
-3. **API key working.** Ask: `Call the Massive API for AAPL's last trade.` You should get a live price back.
+```bash
+export MASSIVE_API_KEY=your_key
+claude --plugin-dir . --mcp-config /path/to/local.mcp.json
+```
 
-If any step fails, see the [Troubleshooting](#troubleshooting) section below.
+## Verify your setup
+
+After install, open Claude Code in any directory and check three things:
+
+1. Run `/reload-plugins`. Expect `1 plugins · 5 skills · 0 errors`.
+2. Ask: `What MCP tools do you have from Massive?` Should list `search_endpoints`, `call_api`, `query_data`.
+3. Ask: `Call the Massive API for AAPL's last trade.` Should return a live price.
+
+If any step fails, see Troubleshooting.
 
 ## Troubleshooting
 
-### MCP server does not start
+### MCP server won't start
 
-The Massive MCP server is spawned via [`uvx`](https://docs.astral.sh/uv/guides/tools/) and requires Python 3.12+.
+The MCP server is spawned via [`uvx`](https://docs.astral.sh/uv/guides/tools/) and needs Python 3.12 or newer.
 
-- **`uvx: command not found`** — Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh` (macOS/Linux) or `pip install uv`.
-- **Python too old** — Check with `python3 --version`. uvx will fetch Python 3.12 automatically the first time, but this requires network access. If you are offline, install Python 3.12 manually.
-- **No MCP tools available in Claude** — Restart Claude Code. If it persists, run with `claude --debug` and look for `mcp_massive` entries in the logs.
-- **First launch is slow** — On the first run, uvx downloads the MCP server package (~5-10 seconds). Subsequent launches are fast.
+- `uvx: command not found`: install `uv`. macOS or Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`. Otherwise: `pip install uv`.
+- Python too old: `uvx` will download 3.12 on first run if you have network access. Offline, install it yourself.
+- First launch is slow (5 to 10 seconds) because uvx is downloading the server package. Subsequent starts are instant.
+- MCP tools still not visible: restart Claude Code. If it still fails, run with `claude --debug` and look for `mcp_massive` in the log.
+- Manual smoke test, outside Claude Code: `uvx --from git+https://github.com/massive-com/mcp_massive@v0.9.0 mcp_massive` should spin up a running process.
 
-### Plugin did not load
+### Plugin didn't load
 
-- Run `/reload-plugins` inside Claude Code; it reports errors inline.
-- Confirm `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` exist and parse as valid JSON.
-- For local testing, verify you are in the repo root when running `claude --plugin-dir .`.
+- Run `/reload-plugins`; it reports errors inline.
+- Confirm `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` are valid JSON.
+- For local testing, confirm you're at the repo root when running `claude --plugin-dir .`.
 
-### API calls return 401 Unauthorized
+### 401 Unauthorized
 
-- **Installed via marketplace:** The API key is stored in your system keychain. Reinstall to re-prompt: `claude plugin uninstall massive@massive-com-claude-code-plugin && claude plugin install massive@massive-com-claude-code-plugin`.
-- **Local testing (`--plugin-dir`):** The plugin does not prompt for a key in local mode. Export it before starting Claude Code: `export MASSIVE_API_KEY=your_key` then `claude --plugin-dir .`.
-- **Key revoked or rotated:** Get a fresh key at [massive.com/dashboard](https://massive.com/dashboard) and reinstall the plugin.
+- **Installed via marketplace.** The key lives in your system keychain. Reinstall to re-prompt: `claude plugin uninstall massive@massive-com-claude-code-plugin && claude plugin install massive@massive-com-claude-code-plugin`.
+- **Local mode with `--plugin-dir`.** See "Local testing gotcha" above; the plugin's `.mcp.json` uses user_config interpolation that won't pick up a shell env var.
+- **Key rotated or revoked.** Regenerate at [massive.com/dashboard](https://massive.com/dashboard) and reinstall.
 
-### Rate-limited (429) on Basic tier
+### Rate limited (429) on Basic
 
-The free Basic plan is capped at 5 calls/min. If you hit 429s, see the retry and caching guidance in `/massive:debug` or upgrade to Starter ($29-49/mo) for unlimited calls.
+Basic plan caps at 5 calls per minute. `/massive:debug` has language-specific retry helpers. The Python one is non-obvious: `BadResponse` doesn't preserve the HTTP status code, so you match the body text (`"maximum requests"`, `"rate limit"`) instead. If retries aren't enough, cache reference data for 24 hours, batch via the universal snapshot endpoint instead of per-ticker calls, or move to Starter ($29 to $49/mo).
 
-## Plans and pricing
+## Plans
 
-Plans are per asset class (Stocks, Options, Indices, Currencies, Futures). A free tier is available for every asset class.
+Pricing is per asset class (stocks, options, indices, currencies, futures). Every asset class has a free Basic tier.
 
-| Tier | Price | Data | Key features |
+| Tier | Price | Data access | Key features |
 |---|---|---|---|
-| Basic | $0/mo | End-of-day, 2yr history | 5 calls/min, aggregates, reference data, technical indicators |
-| Starter | $29-49/mo | 15-min delayed, 2-5yr history | Unlimited calls, WebSockets, flat files, snapshots |
-| Developer | $79/mo | 15-min delayed, 4-10yr history | Adds trade data |
-| Advanced | $99-199/mo | Real-time, 5-20+yr history | Adds quotes, financials/ratios (stocks) |
-| Business | $999-2,500/mo | Real-time, full history | Commercial use, no exchange fees, FMV |
+| Basic | $0/mo | End-of-day, 2yr history | 5 calls/min, aggregates, reference, technical indicators |
+| Starter | $29 to $49/mo | 15-min delayed, 2 to 5yr history | Unlimited calls, WebSockets, flat files, snapshots |
+| Developer | $79/mo | 15-min delayed, 4 to 10yr history | Adds trade data |
+| Advanced | $99 to $199/mo | Real-time, 5 to 20+yr history | Adds quotes, financials/ratios (stocks) |
+| Business | $999 to $2,500/mo | Real-time, full history | Commercial use, no exchange fees, FMV |
 | Enterprise | Custom | Everything | SLAs, dedicated support |
 
-**Individual vs Business:** Individual plans are for personal, non-commercial projects. If you are building a product, SaaS, or redistributing data, you need a Business plan.
+Individual tiers are for personal, non-commercial use. Building a product, redistributing data, or embedding this in a SaaS puts you in Business territory.
 
-**Partner data** (Benzinga, ETF Global, TMX) is available as add-ons at $99/mo per dataset. Annual billing saves 20%.
-
-Full pricing details: [massive.com/pricing](https://massive.com/pricing)
+Add-ons are $99/mo each on individual tiers: Benzinga (news, ratings, earnings), ETF Global (constituents, flows), TMX (corporate events). Annual billing saves 20%. Full breakdown at [massive.com/pricing](https://massive.com/pricing).
 
 ## Requirements
 
 - [Claude Code](https://claude.ai/code) CLI
-- [uv](https://docs.astral.sh/uv/) (for MCP server installation)
-- Python 3.12+ (required by the MCP server; the Python SDK supports 3.9+)
-- A Massive API key ([massive.com/dashboard](https://massive.com/dashboard))
+- [uv](https://docs.astral.sh/uv/), for the MCP server
+- Python 3.12+ for the MCP server (the Python SDK itself supports 3.9+)
+- A Massive API key
 
-For non-Python scaffolding:
-- **JavaScript/TypeScript:** Node.js 16+
-- **Go:** Go 1.21+
-- **Kotlin:** JDK 21+ and Gradle
+For non-Python scaffolding: Node.js 16+, Go 1.21+, or JDK 21+ with Gradle.
 
 ## Official SDKs
 
-All skills support Python, JavaScript/TypeScript, Go, and Kotlin. Massive provides official client libraries for each:
+All skills support Python, JavaScript/TypeScript, Go, and Kotlin.
 
-| Language | Package | Minimum version | Repository |
+| Language | Package | Min version | Repo |
 |---|---|---|---|
-| Python | `massive` on PyPI | v2.5.0 (Python 3.9+) | [massive-com/client-python](https://github.com/massive-com/client-python) |
-| JavaScript/TypeScript | `@massive.com/client-js` on npm | v10.6.0 (Node.js 16+) | [massive-com/client-js](https://github.com/massive-com/client-js) |
-| Go | `github.com/massive-com/client-go/v3` | v3.2.0 (Go 1.21+) | [massive-com/client-go](https://github.com/massive-com/client-go) |
-| Kotlin/JVM | JitPack `com.github.massive-com:client-jvm` | v5.1.2 (JDK 21+, Android SDK 21+) | [massive-com/client-jvm](https://github.com/massive-com/client-jvm) |
+| Python | `massive` on PyPI | 2.5.0 (Python 3.9+) | [massive-com/client-python](https://github.com/massive-com/client-python) |
+| JavaScript/TypeScript | `@massive.com/client-js` on npm | 10.6.0 (Node.js 16+) | [massive-com/client-js](https://github.com/massive-com/client-js) |
+| Go | `github.com/massive-com/client-go/v3` | 3.2.0 (Go 1.21+) | [massive-com/client-go](https://github.com/massive-com/client-go) |
+| Kotlin/JVM | JitPack `com.github.massive-com:client-jvm` | 5.1.2 (JDK 21+, Android SDK 21+) | [massive-com/client-jvm](https://github.com/massive-com/client-jvm) |
 
-## Other AI coding assistants
+## Using a different AI tool?
 
-Using a different AI tool? The [**massive-ai-rules**](https://github.com/massive-com/massive-ai-rules) repo has equivalent instruction files for Cursor, GitHub Copilot, Gemini CLI, Windsurf, and more, plus setup guides for Perplexity Spaces and ChatGPT Projects.
-
-For OpenAI Codex users, see the [**Massive Codex plugin**](https://github.com/massive-com/codex-plugin).
+- [massive-ai-rules](https://github.com/massive-com/massive-ai-rules) has equivalent rule files for Cursor, GitHub Copilot, Windsurf, and Gemini CLI, plus setup guides for Perplexity Spaces and ChatGPT Projects.
+- Codex users: [massive-com/codex-plugin](https://github.com/massive-com/codex-plugin).
 
 ## Documentation
 
-- [REST API reference](https://massive.com/docs/rest/llms-full.txt) (full endpoint catalog)
+- [REST API reference](https://massive.com/docs/rest/llms-full.txt): full endpoint catalog, always current
+- [Docs index](https://massive.com/docs/llms.txt)
 - [Python SDK](https://pypi.org/project/massive/)
 - [Community examples and demos](https://github.com/massive-com/community)
-- [MCP server](https://github.com/massive-com/mcp_massive)
-- [Claude Code plugins](https://docs.anthropic.com/en/docs/claude-code)
+- [MCP server source](https://github.com/massive-com/mcp_massive)
+- [Claude Code plugins docs](https://docs.anthropic.com/en/docs/claude-code)
 
 ## Community
 
-- [Facebook](https://www.facebook.com/massivefb)
-- [X (Twitter)](https://www.x.com/massive_com)
-- [LinkedIn](https://www.linkedin.com/company/massive-inc)
-- [YouTube](https://www.youtube.com/@massive_com)
-- [Reddit](https://www.reddit.com/r/Massive/)
-- [Instagram](https://www.instagram.com/massive_com)
+[Facebook](https://www.facebook.com/massivefb) · [X](https://www.x.com/massive_com) · [LinkedIn](https://www.linkedin.com/company/massive-inc) · [YouTube](https://www.youtube.com/@massive_com) · [Reddit](https://www.reddit.com/r/Massive/) · [Instagram](https://www.instagram.com/massive_com)
 
 ## License
 
-MIT
+MIT.
 
 ## Disclaimer
 
-This content is for educational purposes only. Nothing in this post constitutes investment advice or a recommendation to buy or sell any securities or other financial instruments. Massive is a market data provider, not a broker-dealer, exchange, or investment adviser. Market data accessed through Massive may originate from third-party exchanges and data providers or may be derived or calculated by Massive; in either case, it is subject to the applicable terms of your Massive subscription agreement. The data and code samples provided by Massive are offered on an "as-is" basis without any warranty of accuracy, completeness, or timeliness. You are solely responsible for your use of the data provided by Massive and for compliance with all applicable terms and conditions, laws, and data licensing requirements.
+Educational material, not investment advice or a recommendation to buy or sell any security. Massive is a market data provider, not a broker-dealer, exchange, or investment adviser. Market data may originate from third-party exchanges and data providers, or may be derived or calculated by Massive; in either case, it is subject to the terms of your Massive subscription. The data and code samples are provided as-is, without warranty of accuracy, completeness, or timeliness. You're responsible for your use of the data and for compliance with all applicable laws and data licensing terms.
