@@ -54,14 +54,14 @@ Skip the MCP install if you only want knowledge + skills. The plugin still works
 ### 1. Prereqs
 
 - [Claude Code](https://claude.ai/code) CLI. Check with `claude --version`.
-- [uv](https://docs.astral.sh/uv/), to install the Massive MCP server (only needed for live-API features). Check with `uv --version`. Install with `curl -LsSf https://astral.sh/uv/install.sh | sh` (macOS or Linux) or `pip install uv`.
+- [uv](https://docs.astral.sh/uv/), to install the Massive MCP server (only needed for live-API features). Check with `uv --version`. Install with `curl -LsSf https://astral.sh/uv/install.sh | sh` (macOS or Linux), `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"` (Windows), or `pip install uv` (any platform).
 - A Massive API key from [massive.com/dashboard](https://massive.com/dashboard). The free Basic tier is enough to start (end-of-day data, 5 calls/min).
 
 For scaffolding in languages other than Python, you'll also need Node.js 16+, Go 1.21+, or JDK 21+ with Gradle, depending on the language you pick. The plugin itself doesn't require these; they only matter when `/massive:scaffold` creates a project in that language and you want to run it.
 
 ### 2. Install the Massive MCP server (optional)
 
-The [Massive MCP server](https://github.com/massive-com/mcp_massive) lets Claude inspect real API responses, fetch live data for debugging, and explore endpoints before writing code. Install it once as a shared `uv` tool on your `$PATH`:
+The [Massive MCP server](https://github.com/massive-com/mcp_massive) lets Claude inspect real API responses, fetch live data for debugging, and explore endpoints before writing code. Install it once as a shared `uv` tool on your `PATH`:
 
 ```bash
 uv tool install "mcp_massive @ git+https://github.com/massive-com/mcp_massive"
@@ -148,8 +148,8 @@ The plugin no longer bundles an MCP config, so there's nothing tricky here. If y
 
 Run `/mcp` in Claude Code. If `massive` isn't there:
 
-- `mcp_massive` binary missing: run `uv tool install "mcp_massive @ git+https://github.com/massive-com/mcp_massive"`. Check with `which mcp_massive`.
-- `uv` missing: install it first (`curl -LsSf https://astral.sh/uv/install.sh | sh` or `pip install uv`). `mcp_massive` needs Python 3.12+; `uv tool install` fetches it automatically on first use.
+- `mcp_massive` binary missing: run `uv tool install "mcp_massive @ git+https://github.com/massive-com/mcp_massive"`. Check with `which mcp_massive` (macOS/Linux) or `(Get-Command mcp_massive).Source` (Windows PowerShell).
+- `uv` missing: install it first (`curl -LsSf https://astral.sh/uv/install.sh | sh` on macOS/Linux, `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"` on Windows, or `pip install uv` anywhere). `mcp_massive` needs Python 3.12+; `uv tool install` fetches it automatically on first use.
 - Server not registered: run `claude mcp add massive --scope user --env MASSIVE_API_KEY=your_key -- mcp_massive`. Restart Claude Code.
 - Still not visible: run `claude --debug` and look for `mcp_massive` in the log. `claude mcp list` should show `✓ Connected`; if it shows an error, that's your clue.
 - Manual smoke test outside Claude Code: running `mcp_massive` in a terminal should start a process that waits for stdin. Ctrl-C to stop.
