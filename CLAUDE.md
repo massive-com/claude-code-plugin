@@ -34,7 +34,7 @@ with the plugin.)
 
 ```bash
 # 1. Install the MCP server (global, shared across Claude Code + Codex)
-uv tool install git+https://github.com/massive-com/mcp_massive
+uv tool install "mcp_massive @ git+https://github.com/massive-com/mcp_massive"
 
 # 2. Register it with Claude Code
 claude mcp add massive --scope user --env MASSIVE_API_KEY=your_key -- mcp_massive

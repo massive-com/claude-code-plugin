@@ -64,7 +64,7 @@ For scaffolding in languages other than Python, you'll also need Node.js 16+, Go
 The [Massive MCP server](https://github.com/massive-com/mcp_massive) lets Claude inspect real API responses, fetch live data for debugging, and explore endpoints before writing code. Install it once as a shared `uv` tool on your `$PATH`:
 
 ```bash
-uv tool install git+https://github.com/massive-com/mcp_massive
+uv tool install "mcp_massive @ git+https://github.com/massive-com/mcp_massive"
 ```
 
 `mcp_massive` is now shared across Claude Code and any other MCP-aware tool (Codex, for example). Upgrade later with `uv tool upgrade mcp-massive`. For alternate install paths and advanced options, see the [mcp_massive repo](https://github.com/massive-com/mcp_massive).
@@ -148,7 +148,7 @@ The plugin no longer bundles an MCP config, so there's nothing tricky here. If y
 
 Run `/mcp` in Claude Code. If `massive` isn't there:
 
-- `mcp_massive` binary missing: run `uv tool install git+https://github.com/massive-com/mcp_massive`. Check with `which mcp_massive`.
+- `mcp_massive` binary missing: run `uv tool install "mcp_massive @ git+https://github.com/massive-com/mcp_massive"`. Check with `which mcp_massive`.
 - `uv` missing: install it first (`curl -LsSf https://astral.sh/uv/install.sh | sh` or `pip install uv`). `mcp_massive` needs Python 3.12+; `uv tool install` fetches it automatically on first use.
 - Server not registered: run `claude mcp add massive --scope user --env MASSIVE_API_KEY=your_key -- mcp_massive`. Restart Claude Code.
 - Still not visible: run `claude --debug` and look for `mcp_massive` in the log. `claude mcp list` should show `✓ Connected`; if it shows an error, that's your clue.

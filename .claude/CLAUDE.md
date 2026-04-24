@@ -403,9 +403,9 @@ The Massive MCP server, when registered, exposes three composable tools. Use the
 2. `call_api(endpoint, params, store_as, apply)` - call any REST endpoint; use `store_as` to save results as a DataFrame.
 3. `query_data(sql, apply)` - run SQL (SQLite) against stored DataFrames.
 
-The MCP server is **not bundled with this plugin**. Users install it once globally (`uv tool install git+https://github.com/massive-com/mcp_massive`) and register it with Claude Code (`claude mcp add massive --scope user --env MASSIVE_API_KEY=... -- mcp_massive`). Skills that reference `mcp__massive__*` tools in their `allowed-tools` gracefully degrade when the MCP server isn't registered — they fall back to knowledge from this file.
+The MCP server is **not bundled with this plugin**. Users install it once globally (`uv tool install "mcp_massive @ git+https://github.com/massive-com/mcp_massive"`) and register it with Claude Code (`claude mcp add massive --scope user --env MASSIVE_API_KEY=... -- mcp_massive`). Skills that reference `mcp__massive__*` tools in their `allowed-tools` gracefully degrade when the MCP server isn't registered — they fall back to knowledge from this file.
 
-**Troubleshooting the MCP server:** To run it manually outside Claude Code, invoke the installed binary: `mcp_massive`. If the binary is missing, `uv tool install git+https://github.com/massive-com/mcp_massive` puts it on `$PATH`. Requires `uv` and Python 3.12+. Upgrade with `uv tool upgrade mcp-massive`.
+**Troubleshooting the MCP server:** To run it manually outside Claude Code, invoke the installed binary: `mcp_massive`. If the binary is missing, `uv tool install "mcp_massive @ git+https://github.com/massive-com/mcp_massive"` puts it on `$PATH`. Requires `uv` and Python 3.12+. Upgrade with `uv tool upgrade mcp-massive`.
 
 Built-in financial functions available via `apply` parameter on `call_api` and `query_data`: Black-Scholes (`bs_price`, `bs_delta`, `bs_gamma`, `bs_theta`, `bs_vega`, `bs_rho`), returns (`simple_return`, `log_return`, `cumulative_return`, `sharpe_ratio`, `sortino_ratio`), technicals (`sma`, `ema`).
 

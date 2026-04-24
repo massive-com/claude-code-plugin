@@ -21,7 +21,7 @@ The plugin does not bundle an MCP server. Install and register it once before th
 
 ```bash
 # Install the server binary globally via uv
-uv tool install git+https://github.com/massive-com/mcp_massive
+uv tool install "mcp_massive @ git+https://github.com/massive-com/mcp_massive"
 
 # Register it with Claude Code at user scope
 claude mcp add massive --scope user --env MASSIVE_API_KEY=your_key -- mcp_massive
