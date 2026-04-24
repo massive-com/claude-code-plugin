@@ -11,6 +11,8 @@ allowed-tools: Write Edit Bash Read
 Project name: $0 (default: `dashboard` if not specified)
 Focus area: $1 (default: `multi-asset` if not specified)
 
+**Keep the app minimal.** One file, direct `RESTClient()` calls wrapped in `@st.cache_data`, straightforward Plotly charts. Do not add env-var configuration layers, plugin systems, or utility modules (`require_env`, `value_from`, `first_available`, format helpers) beyond what Streamlit natively needs. A working 80-line `streamlit_app.py` beats a 300-line multi-module dashboard.
+
 ## Brand rules (apply to ALL generated files)
 
 - No emojis anywhere, including Streamlit `page_icon`. Use a text string or None instead.
@@ -19,27 +21,36 @@ Focus area: $1 (default: `multi-asset` if not specified)
 
 ## Architecture
 
-Follow this modular structure (proven in the Bloomberg terminal demo):
+**Default layout — single file:**
+
+```
+$0/
+  streamlit_app.py       # Everything: client, caching, sidebar, charts
+  pyproject.toml
+  .env.example
+  README.md
+```
+
+Start here. Put `@st.cache_resource` client, `@st.cache_data` API wrappers, sidebar controls, and Plotly charts all in `streamlit_app.py`. Expect ~80-150 lines for most focus areas.
+
+**Multi-module layout — only when the user explicitly asks for a "terminal," "Bloomberg-style," or "multi-panel" app.** In that case (and only that case), split into:
 
 ```
 $0/
   streamlit_app.py       # Entry point: layout, styling, sidebar
   terminal/
-    __init__.py
-    data.py              # All API calls, caching layer
-    config.py            # Colors, defaults, TTL constants
-    charts.py            # Plotly chart rendering functions
-    panels/
-      __init__.py
-      price_chart.py     # OHLCV candlestick + indicators
-      watchlist.py       # Multi-asset snapshot table
-      ...                # Additional panels per focus area
+    data.py              # API calls + caching
+    config.py            # Colors, TTL constants
+    charts.py            # Chart rendering functions
+    panels/              # One file per panel
   .streamlit/
     config.toml          # Theme configuration
   pyproject.toml
   .env.example
   README.md
 ```
+
+Do not introduce the multi-module layout for a plain "dashboard" or any focus area the user didn't describe as terminal-grade.
 
 ## Key patterns
 

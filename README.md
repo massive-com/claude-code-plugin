@@ -98,6 +98,8 @@ Open Claude Code in any directory and check:
 2. Run `/mcp`. Expect `massive` listed as connected (if you did steps 2-3).
 3. Ask: `Call the Massive API for AAPL's last trade.` Should return a live price when the MCP server is registered, or a note that live data isn't available when it isn't.
 
+The first time Claude calls a Massive MCP tool (`search_endpoints`, `call_api`, or `query_data`), Claude Code will show a one-time approval prompt. Approve it and subsequent calls in the same project are automatic.
+
 If anything fails, jump to [Troubleshooting](#troubleshooting).
 
 ### 6. Try it out

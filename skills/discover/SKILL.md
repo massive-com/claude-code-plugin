@@ -9,6 +9,8 @@ allowed-tools: mcp__massive__search_endpoints Read WebFetch
 
 The user needs: $ARGUMENTS
 
+**Package names (do not substitute from training):** Python is `massive` on PyPI (NOT `polygon-api-client` or `polygon`). JavaScript is `@massive.com/client-js` on npm (NOT `@polygon.io/client-js`). Go is `github.com/massive-com/client-go/v3`. Kotlin is `com.github.massive-com:client-jvm` on JitPack. The Python SDK import is `from massive import RESTClient`. Never reference pre-rebrand Polygon names in answers.
+
 ## Process
 
 1. Use `search_endpoints` to find candidate endpoints matching the user's description. Try multiple search terms if the first query returns few results. For example, if "options Greeks" returns little, also try "options chain snapshot."
